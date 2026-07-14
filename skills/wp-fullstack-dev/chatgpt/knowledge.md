@@ -35,7 +35,7 @@
   wp.apiFetch.use( wp.apiFetch.createNonceMiddleware( wpApiSettings.nonce ) );
   ```
 
-## 4. Accessibility (WAVE Standards)
+## 4. Accessibility (WCAG 2.2 AA)
 - **Color Contrast**: normal text ≥ 4.5:1, large text ≥ 3:1.
 - **Semantic HTML**: use `<header>`, `<main>`, `<nav>`, `<footer>`, proper headings (h1–h6), `<label>` for inputs.
 - **ARIA**: `aria-label` where visible text is absent, `role` attributes sparingly (use native HTML first).
@@ -43,11 +43,12 @@
 - **Alt Text**: all informative images must have `alt` attributes; decorative images can have `alt=""`.
 - **Forms**: error messages linked to fields with `aria-describedby`.
 
-## 5. WAVE Audit Procedure (Agent Simulation)
-1. Scan for missing `alt`, empty links, form labels.
-2. Check heading order: no skipped levels.
-3. Verify color contrast with known safe combos (black/white, dark grey/white, etc.).
-4. Test with a simulated screen reader: all interactive elements should have accessible names.
+## 5. Accessibility Audit Procedure
+1. Run an automated scan for missing alternatives, empty links, names, labels, landmark, and contrast issues.
+2. Manually check headings, landmarks, keyboard order, visible focus, dialogs, error recovery, zoom/reflow, and reduced motion.
+3. Measure actual foreground/background color pairs; do not infer contrast from color names.
+4. Test representative journeys with a real screen reader when available.
+5. Report automated and manual evidence separately. Automated scans and simulated reasoning do not prove WCAG conformance.
 
 ## 6. WooCommerce Compatibility
 - Declare HPOS:  

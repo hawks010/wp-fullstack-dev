@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.0] - 2026-07-15
+### Added
+- Installable Codex plugin manifest and repository marketplace metadata.
+- Compact native skill with natural-language mode routing and Codex UI starter prompts.
+- Split references for plugins, themes, dashboards, blocks, REST, security/accessibility, WooCommerce, testing, and live-site safety.
+- Interactive scaffold supporting eight WordPress project types without forced client branding.
+- Project detection, evidence-based validation, deployable ZIP packaging, and forward tests for scaffolding safety.
+- Reusable starter assets and GitHub Actions workflow under the skill package.
+- Dedicated Custom GPT instructions and knowledge distribution.
+- Discovery-ready GitHub presentation under the concise `wp-fullstack-dev` repository name.
+- Low-maintenance community governance with structured issues, safe AI classification, PR labeling, stale cleanup, Dependabot, support boundaries, and coding-agent instructions.
+
+### Changed
+- Migrated all root examples into starter assets consumed by the scaffold.
+- Updated CI to validate the native plugin, skill tooling, and migrated examples.
+- Replaced unsupported command-frontmatter and deprecated slash-command assumptions with explicit `$wp-fullstack-dev` and natural-language workflows.
+- Release packaging retains compiled production assets while excluding development-only files and dependencies.
+
 ## [2.1.0] - 2026-07-15
 ### Added
 - Complete React dashboard plugin with authenticated REST settings and item CRUD endpoints.

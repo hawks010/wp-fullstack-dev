@@ -1,73 +1,88 @@
-# WordPress Full‑Stack Development GPT Skill – by Sonny x Inkfire
+# WordPress Full-Stack Dev v3 — by Sonny x Inkfire
 
-An **agentic, self‑correcting Custom GPT skill** that acts as your senior WordPress developer for **plugins, child themes, block themes, React admin interfaces, REST APIs, and full accessibility & performance auditing**. It plans, codes, tests, refines, and manages every aspect of a modern WordPress project – automatically.
+[![CI](https://github.com/hawks010/wp-fullstack-dev/actions/workflows/ci.yml/badge.svg)](https://github.com/hawks010/wp-fullstack-dev/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/hawks010/wp-fullstack-dev)](https://github.com/hawks010/wp-fullstack-dev/releases)
+[![MIT license](https://img.shields.io/github/license/hawks010/wp-fullstack-dev)](LICENSE)
+[![WordPress](https://img.shields.io/badge/WordPress-full--stack-3858E9?logo=wordpress)](https://wordpress.org/)
 
-Created by **Sonny x Inkfire**, this toolkit embodies the highest standards of professional WordPress development and demonstrates deep expertise in AI‑assisted coding workflows.
+An installable Codex plugin and Custom GPT package for building, modifying, debugging, auditing, testing, and packaging WordPress plugins, themes, blocks, React dashboards, REST APIs, WooCommerce extensions, multisite features, and WP-CLI commands.
 
-## Goal
-Transform a generic GPT into a **fully autonomous WordPress development agent** that:
-- Builds standards‑compliant plugins **and** themes (classic child, block/FSE)
-- Creates clean, React‑powered admin interfaces with `@wordpress/components`
-- Scaffolds dynamic Gutenberg blocks with `block.json`
-- Designs secure, versioned REST API endpoints
-- Enforces WCAG 2.1 AA accessibility via WAVE‑style audits
-- Performs browser‑level visual passes and user‑flow analysis
-- Optimises performance (caching, asset loading, queries)
-- Manages database versioning, multisite compatibility, and complete uninstallation
-- Generates professional phpDoc and auto‑READMEs for every output
+v3 is designed as a WordPress engineering Swiss Army knife: one skill invocation, automatic mode routing, focused specialist references, production-aware safety rules, reusable starters, and evidence-based validation.
 
-The agent operates with a strict multi‑pass self‑correction loop, never delivering placeholder code and always producing production‑ready, fully documented output.
+## Install in Codex
 
-## Features
-- **Plugin & Theme Development** – Classic child themes, block themes, FSE templates.
-- **Block Editor Mastery** – `block.json`, dynamic blocks, `@wordpress/scripts`, editor styles.
-- **REST API Endpoints** – Secure, versioned, sanitised, documented.
-- **React Admin UIs** – Accessible dashboards using WordPress components.
-- **Accessibility Audit** – Simulated WAVE check (contrast, ARIA, heading order, labels).
-- **Performance Optimization** – Transients, object caching, conditional enqueuing.
-- **CI/CD & Testing** – GitHub Actions example, PHPUnit, Jest, PHPCS, Playwright.
-- **Multisite Awareness** – Network activation, per‑site cleanup.
-- **Automatic Documentation** – phpDoc blocks, hook reference, README generation.
-- **Agentic Loop** – Plan → Generate → Audit (Security, i18n, Visual, UX, A11y, Performance, Docs, Blocks/REST) → Refine.
-
-## How to Use
-### Codex
-Install the repository as a skill, then invoke it directly:
+Use Codex's plugin marketplace flow with this repository:
 
 ```text
-$wp-fullstack-dev build a WooCommerce plugin with a React stock dashboard
+codex plugin marketplace add hawks010/wp-fullstack-dev
 ```
 
-### Custom GPT
-1. Create a new Custom GPT (ChatGPT or any compatible platform).
-2. Copy `skill-instructions.md` into the GPT’s **Instructions** field.
-3. Upload `knowledge-base.md` into the GPT’s **Knowledge** section.
-4. Describe the WordPress outcome you need; the GPT selects the smallest suitable operating mode.
+Then install **WordPress Full-Stack Dev** from the plugin marketplace in Codex. If your Codex environment supports repository skill installation instead, point it at this repository and select `skills/wp-fullstack-dev`.
 
-## Repository Contents
-- `skill-instructions.md` – The agentic prompt with extended plugin/theme/block/UI/a11y loops.
-- `knowledge-base.md` – Condensed standards for PHP, blocks, REST, performance, CI/CD, multisite, design patterns, and WAVE.
-- `wp-fullstack-dev/SKILL.md` – Native one-command Codex skill with mode routing and safe editing rules.
-- `example-plugin/` – A minimal plugin demonstrating all core rules.
-- `example-dashboard-plugin/` – React admin dashboard, authenticated REST API, PHPUnit, Jest, and Playwright.
-- `example-block/` – Metadata-registered dynamic Gutenberg block with production assets.
-- `example-block-theme/` – Minimal full-site editing theme using `theme.json`.
-- `example-child-theme/` – A child theme scaffold with proper enqueuing and template overrides.
-- `example-woocommerce-extension/` – Product tab integration with HPOS compatibility.
-- `example-multisite/` – Network activation, per-site options, and uninstall cleanup.
-- `example-wpcli/` – Custom WP-CLI command example.
-- `.github/workflows/ci.yml` – Matrix CI for PHP, JavaScript, and browser checks.
-- `CHANGELOG.md` – Version history.
-- `CONTRIBUTING.md` – How to contribute.
+Invoke it explicitly with `$wp-fullstack-dev`, or describe a matching WordPress task and allow implicit routing:
 
-## Who is This For?
-- WordPress developers who want a tireless, standards‑enforcing coding partner.
-- Agencies building custom themes, plugins, and admin UIs with React.
-- Accessibility advocates who need automatic WAVE‑like audits built into the workflow.
-- Anyone looking to explore agentic AI in real‑world WordPress projects.
+```text
+$wp-fullstack-dev scaffold a plugin named inventory-sync
+$wp-fullstack-dev build a React stock dashboard with authenticated REST endpoints
+$wp-fullstack-dev validate and package this plugin
+$wp-fullstack-dev audit this WooCommerce extension without changing files
+```
 
-## Author
-Created by **Sonny x Inkfire** – showcasing modern WordPress engineering with AI.
+Codex can run the bundled scaffold, validator, detector, and packager in its workspace. The basic workflow does not require the user to type terminal commands. Skills use natural-language prompts; this package does not depend on deprecated custom slash commands.
 
-## License
-MIT – use freely in commercial and personal projects.
+## What ships
+
+- Native plugin manifest: `.codex-plugin/plugin.json`
+- Skill: `skills/wp-fullstack-dev/SKILL.md`
+- Nine focused engineering references
+- Interactive and argument-driven scaffold tool
+- Project detection, evidence-based validation, and deployable ZIP packaging
+- Plugin, dashboard, dynamic block, classic theme, block theme, WooCommerce, multisite, and WP-CLI starters
+- Reusable GitHub Actions workflow and this repository's full matrix CI
+- Separate Custom GPT instructions and knowledge package
+
+## Why this repository exists
+
+Most AI coding resources cover one narrow WordPress task. This project combines architecture, secure implementation, React administration, Gutenberg, WooCommerce, multisite, WP-CLI, testing, packaging, and production-safe editing in one installable toolkit.
+
+It is also a working demonstration of modern WordPress and AI-assisted engineering by [Sonny x Inkfire](https://github.com/hawks010): complete examples, executable tests, transparent safety rules, and reproducible release tooling rather than prompt-only claims.
+
+## Scaffold behavior
+
+Supported types: `plugin`, `dashboard`, `block`, `classic-theme`, `block-theme`, `woocommerce`, `multisite`, and `wpcli`.
+
+Generated projects use the requested name, slug, text domain, namespace, and prefix. Author metadata is optional. **Sonny x Inkfire is never injected into generated client work unless requested.** Existing destinations are never overwritten.
+
+## Custom GPT distribution
+
+1. Copy `skills/wp-fullstack-dev/chatgpt/instructions.md` into the GPT Instructions field.
+2. Upload `skills/wp-fullstack-dev/chatgpt/knowledge.md` as Knowledge.
+3. Tell the GPT the WordPress outcome; it will select the smallest operating mode.
+
+The Custom GPT package contains the same safety and standards guidance but cannot assume access to the Codex scripts.
+
+## Validation truthfulness
+
+The toolkit reports checks as passed, failed, or skipped with a reason. It does not present static review as a browser test, automated accessibility output as conformance, or unrun commands as successful.
+
+## Community automation
+
+Issues and pull requests are automation-first: structured forms, allowlisted AI classification, path labels, first-contributor guidance, dependency updates, CI, and inactivity cleanup reduce routine maintenance. AI never approves or merges contributor code. Public forks are independent and carry no support or endorsement commitment from this project.
+
+## Repository map
+
+```text
+.codex-plugin/plugin.json
+.agents/plugins/marketplace.json
+skills/wp-fullstack-dev/
+├── SKILL.md
+├── agents/openai.yaml
+├── references/
+├── scripts/
+├── assets/
+└── chatgpt/
+```
+
+## Author and license
+
+Created and maintained by [**Sonny x Inkfire**](https://github.com/hawks010). MIT licensed for commercial and personal use.

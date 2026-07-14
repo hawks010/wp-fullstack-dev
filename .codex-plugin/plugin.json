@@ -1,0 +1,29 @@
+{
+  "name": "wp-fullstack-dev",
+  "version": "3.0.0",
+  "description": "A production-aware WordPress engineering skill with starters, validation, packaging, and specialist references.",
+  "author": {
+    "name": "Sonny x Inkfire",
+    "url": "https://github.com/hawks010"
+  },
+  "homepage": "https://github.com/hawks010/wp-fullstack-dev",
+  "repository": "https://github.com/hawks010/wp-fullstack-dev",
+  "license": "MIT",
+  "keywords": ["wordpress", "woocommerce", "gutenberg", "react", "development"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "WordPress Full-Stack Dev",
+    "shortDescription": "Build and verify WordPress projects",
+    "longDescription": "Scaffold, modify, debug, audit, test, validate, and package modern WordPress plugins, themes, blocks, dashboards, APIs, and WooCommerce extensions.",
+    "developerName": "Sonny x Inkfire",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/hawks010/wp-fullstack-dev",
+    "defaultPrompt": [
+      "Scaffold a production-ready WordPress plugin.",
+      "Build a React WordPress admin dashboard.",
+      "Audit this WordPress project and verify it."
+    ],
+    "brandColor": "#3858E9"
+  }
+}

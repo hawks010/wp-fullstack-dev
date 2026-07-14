@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a reproducible defect in the skill, tooling, or starter projects.
+title: "[Bug]: "
+labels:
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private client data, or vulnerability details.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Codex plugin or skill
+        - Scaffold or packaging script
+        - Plugin starter
+        - Dashboard starter
+        - Block or theme starter
+        - WooCommerce, multisite, or WP-CLI starter
+        - Documentation
+        - CI or release process
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Include exact behavior, error output, and the smallest reproducible example.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v3.0.0 or commit SHA
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: WordPress, PHP, Node, browser, operating system, and relevant dependency versions.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmation
+      options:
+        - label: I removed secrets and client data.
+          required: true
+        - label: I searched existing issues first.
+          required: true

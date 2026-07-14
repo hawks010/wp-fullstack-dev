@@ -1,0 +1,25 @@
+"area: documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"
+"area: automation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/**"
+"area: skill":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "skills/wp-fullstack-dev/SKILL.md"
+          - "skills/wp-fullstack-dev/references/**"
+"area: tooling":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "skills/wp-fullstack-dev/scripts/**"
+"area: starters":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "skills/wp-fullstack-dev/assets/**"
+"area: chatgpt":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "skills/wp-fullstack-dev/chatgpt/**"

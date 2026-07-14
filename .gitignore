@@ -6,3 +6,5 @@
 **/.phpunit.result.cache
 **/test-results/
 **/playwright-report/
+**/__pycache__/
+**/*.pyc

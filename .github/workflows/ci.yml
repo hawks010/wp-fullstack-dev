@@ -8,6 +8,25 @@ permissions:
   contents: read
 
 jobs:
+  toolkit:
+    name: Native skill and tooling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON and Python
+        run: |
+          python3 -m json.tool .codex-plugin/plugin.json >/dev/null
+          python3 -m json.tool .agents/plugins/marketplace.json >/dev/null
+          python3 -m py_compile skills/wp-fullstack-dev/scripts/scaffold.py
+          python3 -m unittest skills/wp-fullstack-dev/scripts/test_scaffold.py
+
+      - name: Validate shell scripts
+        run: |
+          bash -n skills/wp-fullstack-dev/scripts/detect-project.sh
+          bash -n skills/wp-fullstack-dev/scripts/validate.sh
+          bash -n skills/wp-fullstack-dev/scripts/package-plugin.sh
+
   php:
     name: PHP - ${{ matrix.name }}
     runs-on: ubuntu-latest
@@ -16,28 +35,28 @@ jobs:
       matrix:
         include:
           - name: dashboard-plugin
-            path: example-dashboard-plugin
+            path: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
             composer: true
           - name: basic-plugin
-            path: example-plugin
+            path: skills/wp-fullstack-dev/assets/plugin-starter
             composer: true
           - name: dynamic-block
-            path: example-block
+            path: skills/wp-fullstack-dev/assets/block-plugin-starter
             composer: false
           - name: block-theme
-            path: example-block-theme
+            path: skills/wp-fullstack-dev/assets/block-theme-starter
             composer: false
           - name: child-theme
-            path: example-child-theme
+            path: skills/wp-fullstack-dev/assets/classic-theme-starter
             composer: false
           - name: woocommerce-extension
-            path: example-woocommerce-extension
+            path: skills/wp-fullstack-dev/assets/woocommerce-extension-starter
             composer: false
           - name: multisite-plugin
-            path: example-multisite
+            path: skills/wp-fullstack-dev/assets/multisite-plugin-starter
             composer: false
           - name: wp-cli-plugin
-            path: example-wpcli
+            path: skills/wp-fullstack-dev/assets/wpcli-plugin-starter
             composer: false
 
     steps:
@@ -82,9 +101,9 @@ jobs:
       matrix:
         include:
           - name: dashboard-plugin
-            path: example-dashboard-plugin
+            path: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
           - name: dynamic-block
-            path: example-block
+            path: skills/wp-fullstack-dev/assets/block-plugin-starter
 
     steps:
       - uses: actions/checkout@v4
@@ -120,33 +139,33 @@ jobs:
         with:
           node-version: 20
           cache: npm
-          cache-dependency-path: example-dashboard-plugin/package-lock.json
+          cache-dependency-path: skills/wp-fullstack-dev/assets/dashboard-plugin-starter/package-lock.json
 
       - name: Install JavaScript dependencies
-        working-directory: example-dashboard-plugin
+        working-directory: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
         run: npm ci
 
       - name: Build dashboard assets
-        working-directory: example-dashboard-plugin
+        working-directory: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
         run: npm run build
 
       - name: Install Chromium
-        working-directory: example-dashboard-plugin
+        working-directory: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
         run: npx playwright install --with-deps chromium
 
       - name: Start WordPress test environment
-        working-directory: example-dashboard-plugin
+        working-directory: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
         run: npm run env:start
 
       - name: Activate example plugins
-        working-directory: example-dashboard-plugin
+        working-directory: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
         run: npx wp-env run cli wp plugin activate --all
 
       - name: Run Playwright
-        working-directory: example-dashboard-plugin
+        working-directory: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
         run: npm run test:e2e
 
       - name: Stop WordPress test environment
         if: always()
-        working-directory: example-dashboard-plugin
+        working-directory: skills/wp-fullstack-dev/assets/dashboard-plugin-starter
         run: npm run env:stop

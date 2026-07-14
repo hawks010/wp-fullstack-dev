@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: My Agentic Plugin
- * Plugin URI:  https://github.com/hawks010/wp-fullstack-dev-gpt-skill
+ * Plugin URI:  https://github.com/hawks010/wp-fullstack-dev
  * Description: A minimal WordPress plugin demonstrating modern standards: PHP 8.2+, PSR‑4 autoloading, i18n, DB versioning, and clean uninstall.
  * Version:     1.0.0
  * Author:      Sonny x Inkfire

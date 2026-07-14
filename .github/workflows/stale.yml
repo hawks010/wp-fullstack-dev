@@ -1,0 +1,30 @@
+name: Close inactive community threads
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@1e223db275d687790206a7acac4d1a11bd6fe629 # v10
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-issue-stale: 30
+          days-before-issue-close: 7
+          days-before-pr-stale: 21
+          days-before-pr-close: 7
+          stale-issue-label: stale
+          stale-pr-label: stale
+          exempt-issue-labels: pinned,security-review
+          exempt-pr-labels: pinned,security-review
+          stale-issue-message: This issue is inactive and will close in 7 days unless new reproducible information is added.
+          close-issue-message: Closed automatically after prolonged inactivity. A new structured issue may be opened with current evidence.
+          stale-pr-message: This pull request is inactive and will close in 7 days unless work resumes.
+          close-pr-message: Closed automatically after prolonged inactivity. The fork and branch remain under their owner's control.

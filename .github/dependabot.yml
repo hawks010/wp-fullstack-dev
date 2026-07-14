@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - "area: automation"
+  - package-ecosystem: npm
+    directory: /skills/wp-fullstack-dev/assets/dashboard-plugin-starter
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      wordpress-dashboard-tooling:
+        patterns:
+          - "@wordpress/*"
+          - "@testing-library/*"
+          - "@playwright/*"
+  - package-ecosystem: npm
+    directory: /skills/wp-fullstack-dev/assets/block-plugin-starter
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      wordpress-block-tooling:
+        patterns:
+          - "@wordpress/*"
+  - package-ecosystem: composer
+    directory: /skills/wp-fullstack-dev/assets/dashboard-plugin-starter
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+  - package-ecosystem: composer
+    directory: /skills/wp-fullstack-dev/assets/plugin-starter
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3

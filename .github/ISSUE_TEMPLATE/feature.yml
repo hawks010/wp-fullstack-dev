@@ -1,0 +1,31 @@
+name: Feature proposal
+description: Propose a focused improvement to the toolkit.
+title: "[Feature]: "
+labels:
+  - needs-triage
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Describe the WordPress development problem, not only the desired implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Examples or evidence
+      description: Link to relevant WordPress APIs or explain a representative workflow.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - label: This benefits the reusable toolkit rather than one private client project.
+          required: true
