@@ -1,0 +1,15 @@
+/*
+Theme Name: My Agentic Child Theme
+Template: twentytwentyfive
+Description: A child theme demonstrating modern development standards.
+Author: Sonny x Inkfire
+Version: 1.0.0
+Text Domain: my-agentic-child-theme
+*/
+
+/* Scoped child theme styles */
+.childtheme-page-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
