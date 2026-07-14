@@ -1,0 +1,152 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    name: PHP - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dashboard-plugin
+            path: example-dashboard-plugin
+            composer: true
+          - name: basic-plugin
+            path: example-plugin
+            composer: true
+          - name: dynamic-block
+            path: example-block
+            composer: false
+          - name: block-theme
+            path: example-block-theme
+            composer: false
+          - name: child-theme
+            path: example-child-theme
+            composer: false
+          - name: woocommerce-extension
+            path: example-woocommerce-extension
+            composer: false
+          - name: multisite-plugin
+            path: example-multisite
+            composer: false
+          - name: wp-cli-plugin
+            path: example-wpcli
+            composer: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+          tools: composer:v2
+
+      - name: Validate PHP syntax
+        shell: bash
+        run: find "${{ matrix.path }}" -type f -name '*.php' -not -path '*/build/*' -not -path '*/vendor/*' -print0 | xargs -0 -n1 php -l
+
+      - name: Validate Composer package
+        if: matrix.composer
+        working-directory: ${{ matrix.path }}
+        run: composer validate --strict
+
+      - name: Install PHP dependencies
+        if: matrix.composer
+        working-directory: ${{ matrix.path }}
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run PHPCS
+        if: matrix.composer
+        working-directory: ${{ matrix.path }}
+        run: composer lint
+
+      - name: Run PHPUnit
+        if: matrix.composer
+        working-directory: ${{ matrix.path }}
+        run: composer test
+
+  javascript:
+    name: JavaScript - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dashboard-plugin
+            path: example-dashboard-plugin
+          - name: dynamic-block
+            path: example-block
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.path }}/package-lock.json
+
+      - name: Install JavaScript dependencies
+        working-directory: ${{ matrix.path }}
+        run: npm ci
+
+      - name: Build assets
+        working-directory: ${{ matrix.path }}
+        run: npm run build
+
+      - name: Run Jest
+        working-directory: ${{ matrix.path }}
+        run: npm test -- --runInBand
+
+  playwright:
+    name: Playwright - dashboard-plugin
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: example-dashboard-plugin/package-lock.json
+
+      - name: Install JavaScript dependencies
+        working-directory: example-dashboard-plugin
+        run: npm ci
+
+      - name: Build dashboard assets
+        working-directory: example-dashboard-plugin
+        run: npm run build
+
+      - name: Install Chromium
+        working-directory: example-dashboard-plugin
+        run: npx playwright install --with-deps chromium
+
+      - name: Start WordPress test environment
+        working-directory: example-dashboard-plugin
+        run: npm run env:start
+
+      - name: Activate example plugins
+        working-directory: example-dashboard-plugin
+        run: npx wp-env run cli wp plugin activate --all
+
+      - name: Run Playwright
+        working-directory: example-dashboard-plugin
+        run: npm run test:e2e
+
+      - name: Stop WordPress test environment
+        if: always()
+        working-directory: example-dashboard-plugin
+        run: npm run env:stop

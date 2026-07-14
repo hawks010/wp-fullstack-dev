@@ -125,7 +125,7 @@
 
 ## 14. Documentation & phpDoc
 - Every function, class, and method must have a phpDoc block with `@since`, `@param`, `@return`.
-- Use `@package MyPlugin` and `@author Sonny x Inkfire`.
+- Use the project’s package name and authorship. Reserve `@author Sonny x Inkfire` for this repository’s own examples; never force it into client code.
 - Generate a `README.md` for each plugin/theme with installation, hooks, and filter documentation.
 
 ## 15. Design Patterns

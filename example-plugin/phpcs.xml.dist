@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- PHPCS rules for the plugin example. Author: Sonny x Inkfire. -->
+<ruleset name="My Agentic Plugin">
+    <description>WordPress coding standards for the basic plugin example.</description>
+    <file>my-agentic-plugin.php</file>
+    <file>includes</file>
+    <file>uninstall.php</file>
+    <file>tests</file>
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>tests/*</exclude-pattern>
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <rule ref="WordPress-Extra">
+        <exclude name="Generic.Files.LineLength.TooLong"/>
+        <exclude name="WordPress.DB.DirectDatabaseQuery.SchemaChange"/>
+    </rule>
+    <config name="minimum_supported_wp_version" value="6.5"/>
+    <config name="testVersion" value="8.2-"/>
+</ruleset>

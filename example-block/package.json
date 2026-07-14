@@ -1,0 +1,19 @@
+{
+	"name": "example-dynamic-block",
+	"version": "2.1.0",
+	"private": true,
+	"description": "Dynamic Gutenberg block example by Sonny x Inkfire.",
+	"author": "Sonny x Inkfire",
+	"scripts": {
+		"build": "wp-scripts build",
+		"start": "wp-scripts start",
+		"test": "wp-scripts test-unit-js"
+	},
+	"devDependencies": {
+		"@wordpress/block-editor": "^16.0.0",
+		"@wordpress/blocks": "^15.24.0",
+		"@wordpress/components": "^37.0.0",
+		"@wordpress/i18n": "^6.24.0",
+		"@wordpress/scripts": "^33.0.0"
+	}
+}

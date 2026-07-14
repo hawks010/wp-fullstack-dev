@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- PHPCS rules for the dashboard example. Author: Sonny x Inkfire. -->
+<ruleset name="My App Dashboard">
+	<description>WordPress coding standards for the dashboard plugin.</description>
+	<file>myapp-dashboard.php</file>
+	<file>includes</file>
+	<file>tests/php</file>
+	<exclude-pattern>vendor/*</exclude-pattern>
+	<exclude-pattern>tests/*</exclude-pattern>
+	<arg name="basepath" value="."/>
+	<arg name="colors"/>
+	<rule ref="WordPress-Extra">
+		<exclude name="Generic.Files.LineLength.TooLong"/>
+	</rule>
+	<config name="minimum_supported_wp_version" value="6.5"/>
+	<config name="testVersion" value="8.2-"/>
+</ruleset>

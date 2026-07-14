@@ -1,0 +1,47 @@
+/**
+ * Dashboard styles.
+ *
+ * @author Sonny x Inkfire
+ */
+.myapp-dashboard {
+	max-width: 1100px;
+
+	&__grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+		gap: 24px;
+	}
+
+	&__loading,
+	&__section-heading,
+	&__modal-actions,
+	&__items li {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+
+	&__loading {
+		min-height: 180px;
+		justify-content: center;
+	}
+
+	&__section-heading,
+	&__items li {
+		justify-content: space-between;
+	}
+
+	&__items {
+		margin: 16px 0 0;
+
+		li {
+			padding: 10px 0;
+			border-bottom: 1px solid #dcdcde;
+		}
+	}
+
+	&__modal-actions {
+		justify-content: flex-end;
+		margin-top: 24px;
+	}
+}

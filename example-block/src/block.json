@@ -1,0 +1,36 @@
+{
+	"$schema": "https://schemas.wp.org/trunk/block.json",
+	"apiVersion": 3,
+	"name": "sonny-x-inkfire/dynamic-message",
+	"version": "2.1.0",
+	"title": "Dynamic Message",
+	"category": "widgets",
+	"icon": "megaphone",
+	"description": "A server-rendered message block by Sonny x Inkfire.",
+	"textdomain": "example-dynamic-block",
+	"attributes": {
+		"content": {
+			"type": "string",
+			"default": "A dynamic message from WordPress."
+		},
+		"label": {
+			"type": "string",
+			"default": "Message"
+		}
+	},
+	"supports": {
+		"html": false,
+		"color": {
+			"background": true,
+			"text": true
+		},
+		"spacing": {
+			"padding": true,
+			"margin": true
+		}
+	},
+	"editorScript": "file:./index.js",
+	"editorStyle": "file:./index.css",
+	"style": "file:./style-index.css",
+	"render": "file:./render.php"
+}

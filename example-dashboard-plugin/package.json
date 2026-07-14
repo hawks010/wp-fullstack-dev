@@ -1,0 +1,26 @@
+{
+	"name": "myapp-dashboard",
+	"version": "2.1.0",
+	"private": true,
+	"description": "React-powered WordPress dashboard example by Sonny x Inkfire.",
+	"author": "Sonny x Inkfire",
+	"scripts": {
+		"build": "wp-scripts build src/index.js --output-path=build",
+		"start": "wp-scripts start src/index.js --output-path=build",
+		"test": "wp-scripts test-unit-js",
+		"test:e2e": "playwright test",
+		"env:start": "wp-env start",
+		"env:stop": "wp-env stop"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.61.1",
+		"@testing-library/jest-dom": "^6.9.1",
+		"@testing-library/react": "^16.3.2",
+		"@wordpress/api-fetch": "^7.51.0",
+		"@wordpress/components": "^37.0.0",
+		"@wordpress/element": "^8.3.0",
+		"@wordpress/env": "^11.11.0",
+		"@wordpress/i18n": "^6.24.0",
+		"@wordpress/scripts": "^33.0.0"
+	}
+}

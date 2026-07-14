@@ -31,16 +31,32 @@ The agent operates with a strict multi‑pass self‑correction loop, never deli
 - **Agentic Loop** – Plan → Generate → Audit (Security, i18n, Visual, UX, A11y, Performance, Docs, Blocks/REST) → Refine.
 
 ## How to Use
+### Codex
+Install the repository as a skill, then invoke it directly:
+
+```text
+$wp-fullstack-dev build a WooCommerce plugin with a React stock dashboard
+```
+
+### Custom GPT
 1. Create a new Custom GPT (ChatGPT or any compatible platform).
-2. Copy the entire content of `skill-instructions.md` into the GPT’s **Instructions** field.
+2. Copy `skill-instructions.md` into the GPT’s **Instructions** field.
 3. Upload `knowledge-base.md` into the GPT’s **Knowledge** section.
-4. Start any conversation related to WordPress – the GPT will automatically act as your full‑stack development agent.
+4. Describe the WordPress outcome you need; the GPT selects the smallest suitable operating mode.
 
 ## Repository Contents
 - `skill-instructions.md` – The agentic prompt with extended plugin/theme/block/UI/a11y loops.
 - `knowledge-base.md` – Condensed standards for PHP, blocks, REST, performance, CI/CD, multisite, design patterns, and WAVE.
+- `wp-fullstack-dev/SKILL.md` – Native one-command Codex skill with mode routing and safe editing rules.
 - `example-plugin/` – A minimal plugin demonstrating all core rules.
+- `example-dashboard-plugin/` – React admin dashboard, authenticated REST API, PHPUnit, Jest, and Playwright.
+- `example-block/` – Metadata-registered dynamic Gutenberg block with production assets.
+- `example-block-theme/` – Minimal full-site editing theme using `theme.json`.
 - `example-child-theme/` – A child theme scaffold with proper enqueuing and template overrides.
+- `example-woocommerce-extension/` – Product tab integration with HPOS compatibility.
+- `example-multisite/` – Network activation, per-site options, and uninstall cleanup.
+- `example-wpcli/` – Custom WP-CLI command example.
+- `.github/workflows/ci.yml` – Matrix CI for PHP, JavaScript, and browser checks.
 - `CHANGELOG.md` – Version history.
 - `CONTRIBUTING.md` – How to contribute.
 

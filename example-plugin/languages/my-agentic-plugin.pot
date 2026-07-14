@@ -13,6 +13,6 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.5\n"
 
-#: includes/class-core.php:21
+#: includes/class-core.php:53
 msgid "Powered by My Agentic Plugin"
 msgstr ""
