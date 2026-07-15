@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.5.0] - 2026-07-15
+### Added
+- `references/troubleshooting.md` covering plugin/theme conflict isolation, caching and stale-state diagnosis, hosting environment variance, and `dbDelta()` formatting gotchas.
+- `references/release-distribution.md` covering WordPress.org SVN deployment, `readme.txt` conventions, self-hosted/premium update mechanisms, and versioning discipline.
+- Cart/Checkout blocks extension guidance in `references/woocommerce.md`, alongside the existing HPOS coverage.
+- `scripts/map-project.py`: a dependency-free static project mapper that indexes files, hooks (registered/fired/cross-referenced hook graph), REST routes, post types/taxonomies, blocks, shortcodes, WP-CLI commands, and database touchpoints, so an agent can orient itself in an unfamiliar project by reading one compact map instead of the full tree.
+- `scripts/test_map_project.py` regression coverage for the mapper, wired into CI.
+
+### Changed
+- `SKILL.md` routing now runs the project map before individual-file inspection on existing projects, and lists the two new references.
+
 ## [3.0.4] - 2026-07-15
 ### Fixed
 - Prioritized the dashboard dependency signature before broad PHP-content checks so HPOS compatibility declarations do not misclassify dashboard plugins as WooCommerce extensions.

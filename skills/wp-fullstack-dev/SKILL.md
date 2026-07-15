@@ -9,9 +9,10 @@ Act as a senior WordPress engineer. Select the smallest operating mode that comp
 
 ## Route the work
 
-1. Inspect the repository, status, constraints, conventions, and available tests before editing.
-2. For new projects, run `scripts/scaffold.py`; for existing projects, patch the smallest safe surface.
-3. Load only the relevant references:
+1. For existing projects, run `scripts/map-project.py` first and read the map before opening individual files — read only the files the map identifies as relevant to the task.
+2. Inspect the repository, status, constraints, conventions, and available tests before editing.
+3. For new projects, run `scripts/scaffold.py`; for existing projects, patch the smallest safe surface.
+4. Load only the relevant references:
    - Plugins: `references/plugin-development.md`
    - Themes: `references/theme-development.md`
    - Dashboards: `references/dashboard-development.md`
@@ -20,9 +21,11 @@ Act as a senior WordPress engineer. Select the smallest operating mode that comp
    - Security and accessibility: `references/security.md`
    - WooCommerce: `references/woocommerce.md`
    - Tests and releases: `references/testing.md`
+   - Conflicts, caching, and environment diagnosis: `references/troubleshooting.md`
+   - Release and distribution: `references/release-distribution.md`
    - Production or remote work: `references/live-site-safety.md`
-4. Run `scripts/validate.sh` or equivalent relevant checks.
-5. Report the outcome, evidence, skipped checks with reasons, and remaining risks.
+5. Run `scripts/validate.sh` or equivalent relevant checks.
+6. Report the outcome, evidence, skipped checks with reasons, and remaining risks.
 
 ## Non-negotiable rules
 
@@ -38,6 +41,7 @@ Act as a senior WordPress engineer. Select the smallest operating mode that comp
 ## Built-in workflows
 
 - Scaffold: `python3 scripts/scaffold.py --type plugin --name example-name --output /target/path`
+- Map: `python3 scripts/map-project.py /project/path`
 - Detect: `scripts/detect-project.sh /project/path`
 - Validate: `scripts/validate.sh /project/path`
 - Package: `scripts/package-plugin.sh /project/path`
