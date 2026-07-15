@@ -24,6 +24,18 @@ has_npm_script() {
   node -e 'const scripts = require("./package.json").scripts || {}; process.exit(scripts[process.argv[1]] ? 0 : 1)' "$1"
 }
 
+printf 'RUN  Shipping hygiene\n'
+junk="$(find . \( -path ./vendor -o -path ./node_modules -o -path ./.git \) -prune -o -type f \
+  \( -name '*.bak' -o -name '*.bak-*' -o -name '*.bak.*' -o -name '*~' -o -name '*.orig' -o -name '*.rej' \
+     -o -name 'error_log' -o -name 'debug.log' -o -name '.DS_Store' -o -name 'Thumbs.db' \) -print)"
+if [[ -z "$junk" ]]; then
+  printf 'PASS Shipping hygiene\n'
+else
+  printf '%s\n' "$junk"
+  printf 'FAIL Shipping hygiene: remove backup and debug artifacts before release\n'
+  failures=$((failures + 1))
+fi
+
 if command -v php >/dev/null && [[ -n "$(find . -type f -name '*.php' -not -path './vendor/*' -print -quit)" ]]; then
   run "PHP syntax" bash -c 'find . -type f -name "*.php" -not -path "./vendor/*" -not -path "./node_modules/*" -print0 | xargs -0 -n1 php -l'
 else

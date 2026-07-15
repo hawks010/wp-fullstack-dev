@@ -322,6 +322,74 @@ function acme_install() {
             blocks = {item["name"]: item["dynamic"] for item in json.loads(result.stdout)["Blocks"]}
             self.assertEqual({"acme/static-card": False, "acme/dynamic-card": True}, blocks)
 
+    GUARD_MODULE = (
+        "<?php\n"
+        "// Duplicated operational guard used to reproduce theme/plugin layering decay.\n"
+        "define( 'DEMO_ALERT_EMAIL', 'ops@example.com' );\n"
+        "function demo_guard_run() {\n"
+        "    update_option( 'demo_shared_state', time() );\n"
+        "}\n"
+        "function demo_guard_schedule() {\n"
+        "    if ( ! wp_next_scheduled( 'demo_guard_event' ) ) {\n"
+        "        wp_schedule_event( time(), 'daily', 'demo_guard_event' );\n"
+        "    }\n"
+        "}\n"
+        "add_action( 'init', 'demo_guard_run' );\n"
+        "add_action( 'after_setup_theme', 'demo_guard_schedule' );\n"
+    )
+
+    def write_site(self, root: Path, duplicate_guard: bool) -> None:
+        """Create a two-component site; optionally duplicate the guard module in both."""
+        theme = root / "demo-theme"
+        plugin = root / "demo-plugin"
+        (theme / "inc").mkdir(parents=True)
+        (plugin / "includes").mkdir(parents=True)
+        (theme / "style.css").write_text("/*\nTheme Name: Demo Theme\n*/\n", encoding="utf-8")
+        (plugin / "demo-plugin.php").write_text(
+            "<?php\n/**\n * Plugin Name: Demo Plugin\n */\n", encoding="utf-8"
+        )
+        (plugin / "includes" / "guard.php").write_text(self.GUARD_MODULE, encoding="utf-8")
+        if duplicate_guard:
+            (theme / "inc" / "guard.php").write_text(self.GUARD_MODULE, encoding="utf-8")
+
+    def test_site_audit_reports_cross_component_conflicts(self) -> None:
+        """A theme/plugin pair shipping the same module must surface every conflict class."""
+        with tempfile.TemporaryDirectory() as directory:
+            self.write_site(Path(directory), duplicate_guard=True)
+            result = self.run_map(Path(directory), "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            section = json.loads(result.stdout)["Cross-component conflicts"]
+            self.assertEqual(["demo-plugin", "demo-theme"], section["components"])
+            hooks = {(item["hook"], item["callback"]) for item in section["duplicate_hooks"]}
+            self.assertIn(("init", "'demo_guard_run'"), hooks)
+            self.assertIn(("after_setup_theme", "'demo_guard_schedule'"), hooks)
+            self.assertEqual(
+                ["demo-plugin/includes/guard.php", "demo-theme/inc/guard.php"],
+                section["identical_files"][0]["files"],
+            )
+            functions = {item["name"] for item in section["duplicate_functions"]}
+            self.assertEqual({"demo_guard_run", "demo_guard_schedule"}, functions)
+            self.assertEqual("DEMO_ALERT_EMAIL", section["duplicate_constants"][0]["name"])
+            self.assertEqual("demo_shared_state", section["contested_option_writes"][0]["option"])
+            markdown = self.run_map(Path(directory))
+            self.assertIn("## Cross-component conflicts (2 components:", markdown.stdout)
+            self.assertIn("fatal redeclaration risk", markdown.stdout)
+
+    def test_clean_multi_component_site_reports_no_conflicts_explicitly(self) -> None:
+        """A clean site must state that the audit ran and found nothing, not stay silent."""
+        with tempfile.TemporaryDirectory() as directory:
+            self.write_site(Path(directory), duplicate_guard=False)
+            result = self.run_map(Path(directory))
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("## Cross-component conflicts (2 components:", result.stdout)
+            self.assertIn("None detected", result.stdout)
+
+    def test_single_project_map_has_no_conflicts_section(self) -> None:
+        """Mapping one project root must not enter site-audit mode."""
+        result = self.run_map(DASHBOARD_STARTER)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertNotIn("Cross-component conflicts", result.stdout)
+
     def test_output_option_writes_the_requested_format(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "project"

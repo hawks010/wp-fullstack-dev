@@ -19,6 +19,8 @@ zip -rq "$archive" "$slug" \
      "$slug/node_modules/*" "$slug/vendor/*" "$slug/tests/*" "$slug/e2e/*" \
      "$slug/src/*" "$slug/test-results/*" "$slug/playwright-report/*" \
      "$slug/phpunit.xml*" "$slug/phpcs.xml*" "$slug/playwright.config.*" \
-     "$slug/package-lock.json" "$slug/composer.lock" "$slug/*.log" "$slug/.DS_Store"
+     "$slug/package-lock.json" "$slug/composer.lock" "$slug/*.log" \
+     "$slug/*.bak" "$slug/*.bak-*" "$slug/*.bak.*" "$slug/*~" "$slug/*.orig" "$slug/*.rej" \
+     "$slug/*error_log" "$slug/*.DS_Store" "$slug/*Thumbs.db"
 
 echo "Created $archive"

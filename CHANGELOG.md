@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.6.0] - 2026-07-15
+### Added
+- `scripts/map-project.py` site-audit mode: pointing the mapper at a directory containing two or more components (plugins/themes) now emits a `Cross-component conflicts` section reporting duplicate hook registrations (same hook and callback in more than one component), byte-identical files shipped by multiple components, functions and constants defined in more than one component (fatal-redeclaration and drift risk), and options written by more than one component (contested ownership). A clean site states "None detected" explicitly rather than staying silent.
+- `scripts/validate.sh` shipping-hygiene gate: validation now fails, naming each artifact, when a project ships backup files (`*.bak`, `*.bak-*`, `*~`, `*.orig`, `*.rej`), `error_log`/`debug.log` dumps, or OS litter (`.DS_Store`, `Thumbs.db`); dependency directories are exempt.
+- `references/site-architecture.md`: ownership rules for multi-component sites — behavior lives in plugins, themes are presentation-only, move-don't-copy, one owner per hook/function/constant/option, real capability checks instead of hardcoded ownership stubs, and migration-shim removal discipline.
+- `scripts/test_validate.py` covering the hygiene gate, wired into CI.
+
+### Changed
+- `SKILL.md`: new site-audit workflow entry, a one-owner-per-behavior non-negotiable rule, the site-architecture reference in routing, and an explicit definition of done — validation passing, a conflict-free map/site audit, and a clean package — to anchor iterate-until-finished loops.
+- `scripts/package-plugin.sh` now excludes backup and debug artifacts from release archives.
+
 ## [3.5.2] - 2026-07-15
 ### Fixed
 - `scripts/map-project.py`: REST `methods` and `permission_callback` are now read from each route's own argument array instead of a fixed 15-line window, so an unprotected route can no longer inherit a neighboring route's permission callback or HTTP methods — previously an open endpoint within 15 lines of a protected one was reported as protected (a security false negative for anyone auditing route protection from the map).
