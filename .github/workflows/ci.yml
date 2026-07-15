@@ -20,6 +20,7 @@ jobs:
           python3 -m json.tool .agents/plugins/marketplace.json >/dev/null
           python3 -m py_compile skills/wp-fullstack-dev/scripts/scaffold.py
           python3 -m unittest skills/wp-fullstack-dev/scripts/test_scaffold.py
+          python3 -m unittest skills/wp-fullstack-dev/scripts/test_map_project.py
 
       - name: Validate shell scripts
         run: |
