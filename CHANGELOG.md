@@ -1,5 +1,9 @@
 # Changelog
 
+## [3.0.2] - 2026-07-15
+### Fixed
+- Made the WordPress login E2E selector unambiguous for current Playwright strict-mode behavior.
+
 ## [3.0.1] - 2026-07-15
 ### Fixed
 - Locked Composer dependencies for the PHP 8.2 CI baseline so plugin and dashboard starter tests install reproducibly.
