@@ -237,6 +237,17 @@ class ScaffoldTest(unittest.TestCase):
                     self.assertEqual(0, result.returncode, result.stderr)
                     self.assertEqual(expected, result.stdout.strip())
 
+    def test_project_detector_prefers_dashboard_dependencies_over_hpos_boilerplate(self) -> None:
+        dashboard_starter = SCRIPT.parent.parent / "assets" / "dashboard-plugin-starter"
+        result = subprocess.run(
+            [str(DETECT_SCRIPT), str(dashboard_starter)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("dashboard-plugin", result.stdout.strip())
+
     def test_project_detector_works_without_ripgrep(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory)

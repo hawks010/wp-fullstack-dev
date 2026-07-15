@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.4] - 2026-07-15
+### Fixed
+- Prioritized the dashboard dependency signature before broad PHP-content checks so HPOS compatibility declarations do not misclassify dashboard plugins as WooCommerce extensions.
+
+### Tests
+- Added a regression check that detects the shipped HPOS-compatible dashboard starter as `dashboard-plugin`.
+
 ## [3.0.3] - 2026-07-15
 ### Fixed
 - Removed scaffold identity leaks from Composer vendors, block namespaces, shortcode tags, dashboard globals, compiled bundles, and generated filenames.
