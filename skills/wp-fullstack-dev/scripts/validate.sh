@@ -58,6 +58,11 @@ if [[ -f composer.json ]]; then
   else
     echo "SKIP PHPUnit: installed binary or configuration unavailable"
   fi
+  if [[ -x vendor/bin/phpstan && ( -f phpstan.neon.dist || -f phpstan.neon ) ]]; then
+    run "PHPStan" vendor/bin/phpstan analyse --no-progress
+  else
+    echo "SKIP PHPStan: installed binary or configuration unavailable"
+  fi
 fi
 
 if [[ -f package.json ]]; then

@@ -22,6 +22,7 @@ Act as a senior WordPress engineer. Select the smallest operating mode that comp
    - WooCommerce: `references/woocommerce.md`
    - Tests and releases: `references/testing.md`
    - Conflicts, caching, and environment diagnosis: `references/troubleshooting.md`
+   - Any bug, test failure, or unexpected behavior: `references/debugging.md` — root cause before any fix, three-strikes rule
    - Release and distribution: `references/release-distribution.md`
    - Production or remote work: `references/live-site-safety.md`
    - Multi-component sites and theme/plugin layering: `references/site-architecture.md`
@@ -48,6 +49,7 @@ Act as a senior WordPress engineer. Select the smallest operating mode that comp
 - Site audit: `python3 scripts/map-project.py /path/containing/all/components` — emits `Cross-component conflicts` when two or more components are present; resolve every entry before release
 - Detect: `scripts/detect-project.sh /project/path`
 - Validate: `scripts/validate.sh /project/path`
+- Browser audit: `node scripts/browser-audit.mjs <url> [urls...]` — console errors, page exceptions, failed requests, HTTP 4xx/5xx on live pages
 - Package: `scripts/package-plugin.sh /project/path`
 
 When the user asks naturally to build, validate, package, audit, debug, or quick-fix a WordPress project, map that request to the corresponding workflow. Custom slash commands are not required.

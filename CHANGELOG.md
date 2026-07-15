@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.7.0] - 2026-07-15
+### Added
+- `references/debugging.md`: systematic debugging methodology — root cause before any fix, four mandatory phases, stop signs, and a three-strikes rule (three failed fixes means the architecture is the suspect). Includes per-layer instrumentation guidance for PHP (`WP_DEBUG_LOG`, Query Monitor, PHPStan), REST/AJAX (direct curl), JavaScript/React/CSS (browser audit, reconnaissance-then-action), and structure (the project map). Adapted from obra/superpowers `systematic-debugging` and anthropics/skills `webapp-testing`.
+- `scripts/browser-audit.mjs`: loads pages headlessly via Playwright and reports console errors and warnings, uncaught page exceptions, failed requests, and HTTP 4xx/5xx responses per URL — runtime evidence for JS/React/CSS debugging with PASS/FAIL per page.
+- `scripts/map-project.py` `Lifecycle risks` section: flags plugins that persist options or custom tables without any `uninstall.php`/`register_uninstall_hook` (the uninstall contract must be an explicit decision), and plugins that schedule cron/Action Scheduler events without any unschedule call anywhere.
+- `scripts/validate.sh` now runs PHPStan when `vendor/bin/phpstan` and a `phpstan.neon(.dist)` config are present.
+
+### Changed
+- `SKILL.md`: debugging reference wired into routing for any bug or unexpected behavior; browser-audit workflow added.
+
 ## [3.6.0] - 2026-07-15
 ### Added
 - `scripts/map-project.py` site-audit mode: pointing the mapper at a directory containing two or more components (plugins/themes) now emits a `Cross-component conflicts` section reporting duplicate hook registrations (same hook and callback in more than one component), byte-identical files shipped by multiple components, functions and constants defined in more than one component (fatal-redeclaration and drift risk), and options written by more than one component (contested ownership). A clean site states "None detected" explicitly rather than staying silent.

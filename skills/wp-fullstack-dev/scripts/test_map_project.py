@@ -390,6 +390,54 @@ function acme_install() {
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertNotIn("Cross-component conflicts", result.stdout)
 
+    def test_lifecycle_risks_flag_persistence_without_uninstall_and_orphan_schedules(self) -> None:
+        """A plugin that persists data with no uninstall path and schedules without unscheduling is flagged."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "plugin.php").write_text(
+                "<?php\n/**\n * Plugin Name: Lifecycle Fixture\n */\n"
+                "update_option( 'lifecycle_state', 1 );\n"
+                "wp_schedule_event( time(), 'daily', 'lifecycle_event' );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("## Lifecycle risks", result.stdout)
+            self.assertIn("no uninstall.php or register_uninstall_hook", result.stdout)
+            self.assertIn("never unschedules", result.stdout)
+
+    def test_lifecycle_risks_absent_when_uninstall_and_unschedule_exist(self) -> None:
+        """Providing uninstall.php and an unschedule call clears both lifecycle risks."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "plugin.php").write_text(
+                "<?php\n/**\n * Plugin Name: Lifecycle Fixture\n */\n"
+                "update_option( 'lifecycle_state', 1 );\n"
+                "wp_schedule_event( time(), 'daily', 'lifecycle_event' );\n"
+                "register_deactivation_hook( __FILE__, function () {\n"
+                "    wp_clear_scheduled_hook( 'lifecycle_event' );\n"
+                "} );\n",
+                encoding="utf-8",
+            )
+            (target / "uninstall.php").write_text(
+                "<?php\ndelete_option( 'lifecycle_state' );\n", encoding="utf-8"
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertNotIn("## Lifecycle risks", result.stdout)
+
+    def test_lifecycle_risks_do_not_apply_to_themes(self) -> None:
+        """Themes are not plugins: no uninstall contract is expected of them."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "style.css").write_text("/*\nTheme Name: Demo\n*/\n", encoding="utf-8")
+            (target / "functions.php").write_text(
+                "<?php\nupdate_option( 'theme_state', 1 );\n", encoding="utf-8"
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertNotIn("## Lifecycle risks", result.stdout)
+
     def test_output_option_writes_the_requested_format(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "project"

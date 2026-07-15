@@ -47,6 +47,10 @@ TABLE_RE = re.compile(r"\$wpdb->prefix\s*\.\s*(['\"])([^'\"]+)\1")
 FUNCTION_RE = re.compile(r"\bfunction\b")
 
 FUNCTION_DEF_RE = re.compile(r"^function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", re.MULTILINE)
+PLUGIN_HEADER_RE = re.compile(r"^[ \t]*(?:\*[ \t]+)?Plugin Name:", re.MULTILINE | re.IGNORECASE)
+SCHEDULE_RE = re.compile(r"\b(wp_schedule_event|wp_schedule_single_event|as_schedule_single_action|as_schedule_recurring_action|as_enqueue_async_action)\s*\(")
+UNSCHEDULE_RE = re.compile(r"\b(wp_clear_scheduled_hook|wp_unschedule_event|wp_unschedule_hook|as_unschedule_all_actions|as_unschedule_action)\s*\(")
+UNINSTALL_HOOK_RE = re.compile(r"\bregister_uninstall_hook\s*\(")
 DEFINE_RE = re.compile(r"\bdefine\(\s*['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]")
 OPTION_WRITE_FUNCTIONS = {"update_option", "delete_option"}
 IDENTICAL_FILE_MINIMUM_CHARS = 200
@@ -63,6 +67,7 @@ SECTION_SHORTCODES = "Shortcodes"
 SECTION_WPCLI = "WP-CLI commands"
 SECTION_DATABASE = "Database touchpoints"
 SECTION_JAVASCRIPT = "JavaScript entry points"
+SECTION_LIFECYCLE = "Lifecycle risks"
 
 
 def parse_args() -> argparse.Namespace:
@@ -538,6 +543,54 @@ def cross_component_conflicts(
     return conflicts
 
 
+def lifecycle_risks(
+    contents: dict[Path, str],
+    root: Path,
+    option_writes: list[tuple[str, str]],
+    tables: list[dict[str, Any]],
+) -> list[str]:
+    """Report plugin lifecycle gaps: persistent state with no uninstall or unschedule path."""
+    is_plugin = False
+    has_uninstall = False
+    schedules: list[str] = []
+    unschedules = False
+    for path, text in contents.items():
+        if path.suffix.lower() != ".php":
+            continue
+        rel = relative(path, root)
+        if PLUGIN_HEADER_RE.search(text):
+            is_plugin = True
+        if path.name == "uninstall.php" or UNINSTALL_HOOK_RE.search(text):
+            has_uninstall = True
+        for match in SCHEDULE_RE.finditer(text):
+            schedules.append(f"{rel}:{line_number(text, match.start())} ({match.group(1)})")
+        if UNSCHEDULE_RE.search(text):
+            unschedules = True
+    if not is_plugin:
+        return []
+    risks: list[str] = []
+    if (option_writes or tables) and not has_uninstall:
+        persisted = sorted({key for key, _rel in option_writes})
+        summary = []
+        if persisted:
+            summary.append(f"writes {len(persisted)} option(s): {', '.join(persisted[:6])}")
+        if tables:
+            summary.append(f"creates {len(tables)} custom table(s)")
+        risks.append(
+            "Persists data ("
+            + "; ".join(summary)
+            + ") but ships no uninstall.php or register_uninstall_hook. "
+            "Decide the uninstall contract explicitly: delete, or deliberately retain with a stated reason."
+        )
+    if schedules and not unschedules:
+        risks.append(
+            "Schedules events ("
+            + ", ".join(schedules[:4])
+            + ") but never unschedules anywhere. Deactivation must remove scheduled runtime state."
+        )
+    return risks
+
+
 def scan_project(root: Path) -> dict[str, Any]:
     """Scan a project and return structured, stable map data."""
     paths = source_files(root)
@@ -680,6 +733,7 @@ def scan_project(root: Path) -> dict[str, Any]:
         result[key] = sorted(result[key], key=lambda item: tuple(str(value) for value in item.values()))
     result["options"] = sorted(result["options"])
     result["transients"] = sorted(result["transients"])
+    result["lifecycle"] = lifecycle_risks(contents, root, option_writes, result["tables"])
     result["components"] = site_components(result["files"])
     result["conflicts"] = (
         cross_component_conflicts(result, contents, root, result["components"], option_writes)
@@ -773,6 +827,9 @@ def markdown(data: dict[str, Any]) -> str:
             packages = ", ".join(item["packages"]) if item["packages"] else "none"
             exports = ", ".join(item["exports"]) if item["exports"] else "none"
             lines.append(f"{item['file']} — WP packages used: {packages}, exports: {exports}")
+    if data["lifecycle"]:
+        lines.extend(["", f"## {SECTION_LIFECYCLE}"])
+        lines.extend(data["lifecycle"])
     return "\n".join(lines) + "\n"
 
 
@@ -806,6 +863,7 @@ def json_document(data: dict[str, Any]) -> str:
             else None,
         ),
         (SECTION_JAVASCRIPT, data["javascript"]),
+        (SECTION_LIFECYCLE, data["lifecycle"]),
     )
     for name, value in sections:
         if value:
