@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.7.1] - 2026-07-15
+### Changed
+- Synced all three platform surfaces with the v3.6–3.7 capabilities. Claude Code and Codex share `SKILL.md` and the scripts directly; the ChatGPT Custom GPT surface cannot run scripts, so the debugging methodology (iron law, four phases, stop signs, three-strikes rule) and the component-ownership/layering/hygiene rules are now written into `chatgpt/instructions.md` and `chatgpt/knowledge.md` (new sections 16–17) as manual procedure.
+- `.codex-plugin/plugin.json` bumped to 3.7.0 with the mapper, site audit, debugging, and browser-audit capabilities described, plus debug and site-audit default prompts.
+
 ## [3.7.0] - 2026-07-15
 ### Added
 - `references/debugging.md`: systematic debugging methodology — root cause before any fix, four mandatory phases, stop signs, and a three-strikes rule (three failed fixes means the architecture is the suspect). Includes per-layer instrumentation guidance for PHP (`WP_DEBUG_LOG`, Query Monitor, PHPStan), REST/AJAX (direct curl), JavaScript/React/CSS (browser audit, reconnaissance-then-action), and structure (the project map). Adapted from obra/superpowers `systematic-debugging` and anthropics/skills `webapp-testing`.
