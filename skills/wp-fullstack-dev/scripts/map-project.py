@@ -196,28 +196,46 @@ CONST_RE = re.compile(
     r"([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(['\"])(.*?)\2",
 )
 CONST_REFERENCE_RE = re.compile(
-    r"\s*(?:self|static|[A-Za-z_\\][A-Za-z0-9_\\]*)::([A-Za-z_][A-Za-z0-9_]*)\s*"
+    r"\s*(self|static|[A-Za-z_\\][A-Za-z0-9_\\]*)::([A-Za-z_][A-Za-z0-9_]*)\s*"
 )
 
 
-def class_constants(text: str) -> dict[str, str]:
-    """Map same-file string class constants by name for bounded ``self::NAME`` resolution."""
-    constants: dict[str, str] = {}
-    for match in CONST_RE.finditer(text):
-        name, _quote, value = match.groups()
-        if "{$" not in value:
-            constants.setdefault(name, value)
-    return constants
+def class_constant_scopes(text: str) -> list[dict[str, Any]]:
+    """Map string class constants per class body so ``self::NAME`` stays class-scoped."""
+    scopes: list[dict[str, Any]] = []
+    for match in CLASS_RE.finditer(text):
+        brace = text.find("{", match.end())
+        if brace == -1:
+            continue
+        extracted = extract_parenthesized(text, brace)
+        if not extracted:
+            continue
+        body, end = extracted
+        constants: dict[str, str] = {}
+        for constant in CONST_RE.finditer(body):
+            name, _quote, value = constant.groups()
+            if "{$" not in value:
+                constants.setdefault(name, value)
+        scopes.append({"name": match.group(1), "start": brace, "end": end, "constants": constants})
+    return scopes
 
 
-def resolve_route_argument(expression: str, constants: dict[str, str]) -> str:
-    """Resolve a REST route argument to a literal, a known constant, or an unresolved marker."""
+def resolve_route_argument(expression: str, offset: int, scopes: list[dict[str, Any]]) -> str:
+    """Resolve a REST route argument to a literal, a class constant, or an unresolved marker."""
     value = literal_string(expression)
     if value is not None:
         return value
     reference = CONST_REFERENCE_RE.fullmatch(expression)
-    if reference and reference.group(1) in constants:
-        return constants[reference.group(1)]
+    if reference:
+        qualifier, name = reference.groups()
+        if qualifier in {"self", "static"}:
+            enclosing = [scope for scope in scopes if scope["start"] <= offset < scope["end"]]
+            scope = max(enclosing, key=lambda item: item["start"], default=None)
+        else:
+            class_name = qualifier.rsplit("\\", 1)[-1]
+            scope = next((item for item in scopes if item["name"] == class_name), None)
+        if scope and name in scope["constants"]:
+            return scope["constants"][name]
     return f"<unresolved: {compact(expression, 60)}>"
 
 
@@ -287,32 +305,67 @@ def detect_project_type(root: Path) -> str:
     return value if result.returncode == 0 and value else "unknown"
 
 
-def bounded_context(text: str, offset: int, lines: int = 15) -> str:
-    """Return the call line and a bounded number of following lines."""
-    all_lines = text.splitlines()
-    start = line_number(text, offset) - 1
-    return "\n".join(all_lines[start : start + lines + 1])
+def capture_array_value(expression: str, start: int) -> str:
+    """Capture one array value expression, stopping at its enclosing comma or closer."""
+    stack: list[str] = []
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    closing = {value: key for key, value in pairs.items()}
+    quote = ""
+    escaped = False
+    for index in range(start, len(expression)):
+        character = expression[index]
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = ""
+            continue
+        if character in {"'", '"'}:
+            quote = character
+        elif character in pairs:
+            stack.append(character)
+        elif character in closing:
+            if not stack:
+                return expression[start:index].strip()
+            if stack[-1] == closing[character]:
+                stack.pop()
+        elif character == "," and not stack:
+            return expression[start:index].strip()
+    return expression[start:].strip()
+
+
+def array_key_values(expression: str, key: str) -> list[str]:
+    """Return every value assigned to ``key`` within one call's array argument."""
+    return [
+        capture_array_value(expression, match.end())
+        for match in re.finditer(r"['\"]" + re.escape(key) + r"['\"]\s*=>\s*", expression)
+    ]
 
 
 def permission_callback(context: str) -> str:
-    """Summarize a bounded REST permission callback declaration."""
-    match = re.search(r"['\"]permission_callback['\"]\s*=>\s*([^,\n]+)", context)
-    if not match:
-        return "no"
-    expression = compact(match.group(1), 80)
-    literal = literal_string(expression)
-    if literal:
-        return literal
-    if re.fullmatch(r"[A-Za-z_\\][A-Za-z0-9_:\\]*", expression):
-        return expression
-    return "yes"
+    """Summarize the permission callbacks declared in one route's own arguments."""
+    summaries: list[str] = []
+    for value in array_key_values(context, "permission_callback"):
+        expression = compact(value, 80)
+        literal = literal_string(expression)
+        if literal:
+            summary = literal
+        elif re.fullmatch(r"[A-Za-z_\\][A-Za-z0-9_:\\]*", expression):
+            summary = expression
+        else:
+            summary = "yes"
+        if summary not in summaries:
+            summaries.append(summary)
+    return " | ".join(summaries) if summaries else "no"
 
 
 def rest_methods(context: str) -> str:
-    """Summarize literal or constant REST method declarations in bounded context."""
-    values = []
-    for match in re.finditer(r"['\"]methods['\"]\s*=>\s*([^,\n]+)", context):
-        value = compact(match.group(1), 80)
+    """Summarize literal or constant REST method declarations in one route's arguments."""
+    values: list[str] = []
+    for value in array_key_values(context, "methods"):
+        value = compact(value, 80)
         if value and value not in values:
             values.append(value)
     return " | ".join(values) if values else "UNKNOWN"
@@ -434,8 +487,8 @@ def scan_project(root: Path) -> dict[str, Any]:
 
     for path, text in contents.items():
         rel = relative(path, root)
-        constants = class_constants(text)
-        for function, arguments, start, _end in iter_calls(text):
+        scopes = class_constant_scopes(text)
+        for function, arguments, start, end in iter_calls(text):
             line = line_number(text, start)
             if function in HOOK_REGISTRATION_FUNCTIONS and len(arguments) >= 2:
                 name = hook_name(arguments[0])
@@ -450,9 +503,9 @@ def scan_project(root: Path) -> dict[str, Any]:
                 if name:
                     result["fired"].append({"hook": name, "file": rel, "line": line})
             elif function == "register_rest_route" and len(arguments) >= 2:
-                namespace = resolve_route_argument(arguments[0], constants)
-                route = resolve_route_argument(arguments[1], constants)
-                context = bounded_context(text, start)
+                namespace = resolve_route_argument(arguments[0], start, scopes)
+                route = resolve_route_argument(arguments[1], start, scopes)
+                context = arguments[2] if len(arguments) >= 3 else ""
                 result["rest"].append(
                     {
                         "route": namespace.rstrip("/") + "/" + route.lstrip("/"),
@@ -479,7 +532,7 @@ def scan_project(root: Path) -> dict[str, Any]:
                         block = {
                             "name": name,
                             "file": rel,
-                            "dynamic": "render_callback" in bounded_context(text, start),
+                            "dynamic": "render_callback" in text[start:end],
                         }
                 if block and not any(item["name"] == block["name"] for item in result["blocks"]):
                     result["blocks"].append({key: block[key] for key in ("name", "file", "dynamic")})

@@ -247,6 +247,81 @@ function acme_install() {
             self.assertIn("## REST routes", result.stdout)
             self.assertIn("<unresolved: $this->namespace>/thing", result.stdout)
 
+    def test_rest_metadata_does_not_bleed_between_adjacent_routes(self) -> None:
+        """An open route must not inherit methods or permission_callback from a neighbor."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "routes.php").write_text(
+                "<?php\n"
+                "register_rest_route( 'ns/v1', '/public-open', array(\n"
+                "    'methods' => 'GET',\n"
+                ") );\n"
+                "register_rest_route( 'ns/v1', '/admin-only', array(\n"
+                "    'methods' => 'POST',\n"
+                "    'permission_callback' => 'is_admin_cb',\n"
+                ") );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target, "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            routes = {item["route"]: item for item in json.loads(result.stdout)["REST routes"]}
+            self.assertEqual("no", routes["ns/v1/public-open"]["permission_callback"])
+            self.assertEqual("'GET'", routes["ns/v1/public-open"]["methods"])
+            self.assertEqual("is_admin_cb", routes["ns/v1/admin-only"]["permission_callback"])
+            self.assertEqual("'POST'", routes["ns/v1/admin-only"]["methods"])
+
+    def test_same_named_constants_resolve_within_their_own_class(self) -> None:
+        """Two classes sharing a constant name must each resolve to their own value."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "controllers.php").write_text(
+                "<?php\n"
+                "class Alpha_Controller {\n"
+                "    private const NS = 'alpha/v1';\n"
+                "    public function register(): void {\n"
+                "        register_rest_route( self::NS, '/a', array( 'methods' => 'GET' ) );\n"
+                "    }\n"
+                "}\n"
+                "class Beta_Controller {\n"
+                "    private const NS = 'beta/v2';\n"
+                "    public function register(): void {\n"
+                "        register_rest_route( self::NS, '/b', array( 'methods' => 'POST' ) );\n"
+                "    }\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target, "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            routes = {item["route"] for item in json.loads(result.stdout)["REST routes"]}
+            self.assertEqual({"alpha/v1/a", "beta/v2/b"}, routes)
+
+    def test_trailing_methods_value_excludes_closing_brackets(self) -> None:
+        """A methods value that ends the array must not capture the closing `) );`."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "routes.php").write_text(
+                "<?php\nregister_rest_route( 'ns/v1', '/one-liner', array( 'methods' => 'GET' ) );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target, "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual("'GET'", json.loads(result.stdout)["REST routes"][0]["methods"])
+
+    def test_static_block_next_to_dynamic_block_stays_static(self) -> None:
+        """A static block registration must not inherit a neighbor's render_callback."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "blocks.php").write_text(
+                "<?php\n"
+                "register_block_type( 'acme/static-card' );\n"
+                "register_block_type( 'acme/dynamic-card', array( 'render_callback' => 'acme_render' ) );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target, "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            blocks = {item["name"]: item["dynamic"] for item in json.loads(result.stdout)["Blocks"]}
+            self.assertEqual({"acme/static-card": False, "acme/dynamic-card": True}, blocks)
+
     def test_output_option_writes_the_requested_format(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "project"
