@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.0.3] - 2026-07-15
+### Fixed
+- Removed scaffold identity leaks from Composer vendors, block namespaces, shortcode tags, dashboard globals, compiled bundles, and generated filenames.
+- Renamed generated translation templates and WP-CLI include files alongside their rewritten references.
+- Rebuilt npm assets after dependency installation when a starter declares a build script.
+- Added WooCommerce, multisite, and WP-CLI project detection with a dependency-free grep fallback.
+
+### Tests
+- Scaffold all eight project types and scan every generated path and file for stale starter identities.
+- Verify Composer identities, block source/build parity, dashboard bridge globals, POT filenames, WP-CLI paths, specialist routing, and operation without ripgrep.
+
 ## [3.0.2] - 2026-07-15
 ### Fixed
 - Made the WordPress login E2E selector unambiguous for current Playwright strict-mode behavior.

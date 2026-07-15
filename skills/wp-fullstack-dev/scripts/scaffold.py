@@ -8,6 +8,7 @@ Generated project authorship is optional.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
@@ -73,6 +74,10 @@ def replacements(project_type: str, raw_name: str, author: str) -> dict[str, str
     title = display_name(raw_name)
     namespace = namespace_for(slug)
     prefix = prefix_for(slug)
+    try:
+        vendor = slugify(author) if author else slug
+    except ValueError:
+        vendor = slug
     values = {
         "{{PROJECT_NAME}}": title,
         "{{PLUGIN_NAME}}": title,
@@ -81,21 +86,29 @@ def replacements(project_type: str, raw_name: str, author: str) -> dict[str, str
         "{{PREFIX}}": prefix,
         "{{AUTHOR}}": author,
         "Sonny x Inkfire": author,
+        "sonny-x-inkfire": vendor,
+        "sonny_x_inkfire": prefix,
     }
 
     legacy = {
         "plugin": {
             "My Agentic Plugin": title, "my-agentic-plugin": slug,
             "MyAgenticPlugin": namespace, "MYAP": prefix.upper(), "myap": prefix,
+            "my_agentic_message": f"{prefix}_message",
         },
         "dashboard": {
             "My App Dashboard": title, "My App": title,
             "myapp-dashboard": slug, "MyAppDashboard": namespace,
+            "example-dashboard-plugin": slug,
+            "myAppDashboard": f"{namespace}Config",
             "MYAPP_DASHBOARD": prefix.upper(), "myapp": prefix,
         },
         "block": {
             "Example Dynamic Block": title, "Example Message": title,
-            "example-dynamic-block": slug, "example/message": f"{prefix}/message",
+            "example-dynamic-block": slug,
+            "example_dynamic_block": slug.replace("-", "_"),
+            "example-dynamic-message": f"{prefix}-dynamic-message",
+            "example/message": f"{vendor}/dynamic-message",
         },
         "classic-theme": {
             "My Agentic Child Theme": title, "my-agentic-child-theme": slug,
@@ -130,13 +143,50 @@ def rewrite_tree(target: Path, values: dict[str, str], author: str) -> None:
         for old, new in sorted(values.items(), key=lambda pair: len(pair[0]), reverse=True):
             content = content.replace(old, new)
         if not author:
-            content = re.sub(r'\s*"authors"\s*:\s*\[.*?\]\s*,?', "", content, flags=re.DOTALL)
+            content = re.sub(
+                r'\s*"authors"\s*:\s*\[\s*\{\s*"name"\s*:\s*""\s*\}\s*\]\s*,?',
+                "",
+                content,
+                flags=re.DOTALL,
+            )
             content = re.sub(r"^.*@author\s*$\n?", "", content, flags=re.MULTILINE)
             content = re.sub(r"^\s*\*?\s*Author:\s*$\n?", "", content, flags=re.MULTILINE)
             content = re.sub(r'^\s*"author":\s*"",?\s*$\n?', "", content, flags=re.MULTILINE)
             content = re.sub(r'^\s*\{\s*"name":\s*""\s*\},?\s*$\n?', "", content, flags=re.MULTILINE)
             content = content.replace(" by .", ".").replace(" by ,", ",")
         path.write_text(content, encoding="utf-8")
+
+
+def rename_tree_paths(target: Path, values: dict[str, str]) -> None:
+    """Apply identity replacements to copied file and directory names."""
+    path_values = {
+        old: new
+        for old, new in values.items()
+        if old and new and "/" not in old and "/" not in new and "\\" not in old and "\\" not in new
+    }
+    paths = sorted(target.rglob("*"), key=lambda path: len(path.parts), reverse=True)
+    for path in paths:
+        name = path.name
+        for old, new in sorted(path_values.items(), key=lambda pair: len(pair[0]), reverse=True):
+            name = name.replace(old, new)
+        if name == path.name:
+            continue
+        destination = path.with_name(name)
+        if destination.exists():
+            raise FileExistsError(f"Refusing to overwrite renamed path: {destination}")
+        path.rename(destination)
+
+
+def package_has_script(target: Path, script: str) -> bool:
+    """Return whether package.json declares an npm script."""
+    package_file = target / "package.json"
+    if not package_file.exists():
+        return False
+    try:
+        package = json.loads(package_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False
+    return script in package.get("scripts", {})
 
 
 def run_optional(command: list[str], cwd: Path, label: str) -> bool:
@@ -192,6 +242,7 @@ def main() -> int:
     shutil.copytree(source, target, ignore=shutil.ignore_patterns("node_modules", "vendor", ".phpunit.result.cache"))
     values = replacements(project_type, raw_name, author)
     rewrite_tree(target, values, author)
+    rename_tree_paths(target, values)
 
     primary = PRIMARY_FILES.get(project_type)
     if primary and (target / primary).exists():
@@ -204,7 +255,9 @@ def main() -> int:
         if (target / "composer.json").exists() and shutil.which("composer"):
             run_optional(["composer", "install", "--no-interaction"], target, "Composer install")
         if (target / "package.json").exists() and shutil.which("npm"):
-            run_optional(["npm", "install"], target, "npm install")
+            installed = run_optional(["npm", "install"], target, "npm install")
+            if installed and package_has_script(target, "build"):
+                run_optional(["npm", "run", "build"], target, "npm build")
 
     print(f"Created {project_type} project: {target}")
     print(f"Next: review the generated metadata, then run validate.sh {target}")
