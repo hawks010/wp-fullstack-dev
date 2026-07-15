@@ -438,6 +438,64 @@ function acme_install() {
             self.assertEqual(0, result.returncode, result.stderr)
             self.assertNotIn("## Lifecycle risks", result.stdout)
 
+    def test_apostrophe_in_docblock_does_not_break_constant_resolution(self) -> None:
+        """A docblock apostrophe (e.g. "don't") must not desync class-body scanning."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "controller.php").write_text(
+                "<?php\n"
+                "final class Demo_Retention {\n"
+                "    const NAMESPACE = 'demo/v1';\n"
+                "    /**\n"
+                "     * Stamp a UID if they don't have one.\n"
+                "     */\n"
+                "    public function register(): void {\n"
+                "        register_rest_route(self::NAMESPACE, '/unsubscribe', array(\n"
+                "            'methods' => 'GET',\n"
+                "            'permission_callback' => '__return_true',\n"
+                "        ));\n"
+                "    }\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("`demo/v1/unsubscribe`", result.stdout)
+            self.assertNotIn("<unresolved:", result.stdout)
+
+    def test_commented_out_calls_are_not_indexed_as_live(self) -> None:
+        """Dead commented-out registrations must not appear in the map."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "hooks.php").write_text(
+                "<?php\n"
+                "// add_action( 'init', 'dead_callback' );\n"
+                "/* add_shortcode( 'dead_tag', 'dead_render' ); */\n"
+                "# update_option( 'dead_option', 1 );\n"
+                "add_action( 'init', 'live_callback' );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("live_callback", result.stdout)
+            self.assertNotIn("dead_callback", result.stdout)
+            self.assertNotIn("dead_tag", result.stdout)
+            self.assertNotIn("dead_option", result.stdout)
+
+    def test_slashes_inside_string_literals_are_not_comments(self) -> None:
+        """A URL in a string must survive comment blanking."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "urls.php").write_text(
+                "<?php\nadd_shortcode( 'promo', 'render_promo' );\n"
+                "update_option( 'promo_url', 'https://example.com/offer' );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("promo_url", result.stdout)
+            self.assertIn("`[promo]`", result.stdout)
+
     def test_output_option_writes_the_requested_format(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "project"

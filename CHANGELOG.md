@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.8.0] - 2026-07-15
+### Fixed
+- `scripts/map-project.py` is now comment-aware: PHP/JS comments are blanked (offset-preserving) before scanning. Previously an apostrophe inside a docblock ("don't") opened a phantom string that desynced class-body extraction — silently downgrading constant-based REST routes to `<unresolved:>` — and commented-out `add_action`/`add_shortcode`/`update_option` lines were indexed as live registrations. Plugin/theme headers (which live in comments) and file hashing still use the original text; PHP `#[Attribute]` syntax is preserved.
+
+### Added
+- `references/rest-api.md`: deliberately-public endpoint rules — `__return_true` is acceptable only with a real in-handler gate (hashed bearer token, signed expiring URL, or provider signature), upload endpoints need type/size allowlists, and every `permission_callback: __return_true` row in a project map is a named review obligation.
+
+### Tests
+- Three comment-handling regressions: docblock-apostrophe constant resolution, commented-out calls excluded from the map, and slashes inside string literals preserved.
+
 ## [3.7.1] - 2026-07-15
 ### Changed
 - Synced all three platform surfaces with the v3.6–3.7 capabilities. Claude Code and Codex share `SKILL.md` and the scripts directly; the ChatGPT Custom GPT surface cannot run scripts, so the debugging methodology (iron law, four phases, stop signs, three-strikes rule) and the component-ownership/layering/hygiene rules are now written into `chatgpt/instructions.md` and `chatgpt/knowledge.md` (new sections 16–17) as manual procedure.

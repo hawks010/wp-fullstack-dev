@@ -127,6 +127,52 @@ def compact(expression: str, limit: int = 120) -> str:
     return value if len(value) <= limit else value[: limit - 1] + "…"
 
 
+def blank_comments(text: str, allow_hash: bool = False) -> str:
+    """Blank comments with spaces so offsets and line numbers stay aligned.
+
+    Comment text otherwise poisons the quote/bracket scanners (an apostrophe in a
+    docblock opens a phantom string) and makes commented-out calls look live.
+    """
+    result = list(text)
+    quote = ""
+    escaped = False
+    index = 0
+    length = len(text)
+    while index < length:
+        character = text[index]
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = ""
+            index += 1
+            continue
+        if character in {"'", '"'}:
+            quote = character
+            index += 1
+            continue
+        pair = text[index : index + 2]
+        if pair == "/*":
+            end = text.find("*/", index + 2)
+            end = length if end == -1 else end + 2
+            for position in range(index, end):
+                if result[position] != "\n":
+                    result[position] = " "
+            index = end
+            continue
+        if pair == "//" or (allow_hash and character == "#" and pair != "#["):
+            end = text.find("\n", index)
+            end = length if end == -1 else end
+            for position in range(index, end):
+                result[position] = " "
+            index = end
+            continue
+        index += 1
+    return "".join(result)
+
+
 def extract_parenthesized(text: str, opening: int) -> tuple[str, int] | None:
     """Extract one balanced call argument string from an opening parenthesis."""
     depth = 0
@@ -472,6 +518,7 @@ def site_components(files: list[dict[str, Any]]) -> list[str]:
 def cross_component_conflicts(
     result: dict[str, Any],
     contents: dict[Path, str],
+    scannable: dict[Path, str],
     root: Path,
     components: list[str],
     option_writes: list[tuple[str, str]],
@@ -516,9 +563,10 @@ def cross_component_conflicts(
             digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
             digests.setdefault(digest, []).append((component, rel))
         if path.suffix.lower() == ".php":
-            for name in set(FUNCTION_DEF_RE.findall(text)):
+            code = scannable[path]
+            for name in set(FUNCTION_DEF_RE.findall(code)):
                 functions.setdefault(name, {}).setdefault(component, []).append(rel)
-            for name in set(DEFINE_RE.findall(text)):
+            for name in set(DEFINE_RE.findall(code)):
                 constants.setdefault(name, {}).setdefault(component, []).append(rel)
     for _digest, entries in sorted(digests.items()):
         if len({component for component, _rel in entries}) >= 2:
@@ -545,6 +593,7 @@ def cross_component_conflicts(
 
 def lifecycle_risks(
     contents: dict[Path, str],
+    scannable: dict[Path, str],
     root: Path,
     option_writes: list[tuple[str, str]],
     tables: list[dict[str, Any]],
@@ -558,13 +607,14 @@ def lifecycle_risks(
         if path.suffix.lower() != ".php":
             continue
         rel = relative(path, root)
+        code = scannable[path]
         if PLUGIN_HEADER_RE.search(text):
             is_plugin = True
-        if path.name == "uninstall.php" or UNINSTALL_HOOK_RE.search(text):
+        if path.name == "uninstall.php" or UNINSTALL_HOOK_RE.search(code):
             has_uninstall = True
-        for match in SCHEDULE_RE.finditer(text):
-            schedules.append(f"{rel}:{line_number(text, match.start())} ({match.group(1)})")
-        if UNSCHEDULE_RE.search(text):
+        for match in SCHEDULE_RE.finditer(code):
+            schedules.append(f"{rel}:{line_number(code, match.start())} ({match.group(1)})")
+        if UNSCHEDULE_RE.search(code):
             unschedules = True
     if not is_plugin:
         return []
@@ -635,7 +685,14 @@ def scan_project(root: Path) -> dict[str, Any]:
                 block_definitions.append(definition)
                 result["blocks"].append({key: definition[key] for key in ("name", "file", "dynamic")})
 
-    for path, text in contents.items():
+    scannable: dict[Path, str] = {
+        path: blank_comments(text, allow_hash=path.suffix.lower() == ".php")
+        if path.suffix.lower() in {".php", ".js", ".jsx"}
+        else text
+        for path, text in contents.items()
+    }
+
+    for path, text in scannable.items():
         rel = relative(path, root)
         scopes = class_constant_scopes(text)
         for function, arguments, start, end in iter_calls(text):
@@ -733,10 +790,10 @@ def scan_project(root: Path) -> dict[str, Any]:
         result[key] = sorted(result[key], key=lambda item: tuple(str(value) for value in item.values()))
     result["options"] = sorted(result["options"])
     result["transients"] = sorted(result["transients"])
-    result["lifecycle"] = lifecycle_risks(contents, root, option_writes, result["tables"])
+    result["lifecycle"] = lifecycle_risks(contents, scannable, root, option_writes, result["tables"])
     result["components"] = site_components(result["files"])
     result["conflicts"] = (
-        cross_component_conflicts(result, contents, root, result["components"], option_writes)
+        cross_component_conflicts(result, contents, scannable, root, result["components"], option_writes)
         if result["components"]
         else {}
     )
