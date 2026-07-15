@@ -15,6 +15,7 @@ from pathlib import Path
 
 MAP_SCRIPT = Path(__file__).with_name("map-project.py")
 SCAFFOLD_SCRIPT = Path(__file__).with_name("scaffold.py")
+DASHBOARD_STARTER = MAP_SCRIPT.parent.parent / "assets" / "dashboard-plugin-starter"
 PROJECT_TYPES = (
     "plugin",
     "dashboard",
@@ -215,6 +216,36 @@ function acme_install() {
             self.assertEqual("bootstrap", roles["plugin.php"])
             self.assertEqual("React entry/component", roles["src/index.js"])
             self.assertNotIn("excluded_dependency_hook", result.stdout)
+
+    def test_indexes_rest_routes_declared_with_class_constants(self) -> None:
+        """The bundled dashboard controller registers routes via ``self::NAMESPACE``."""
+        self.assertTrue(DASHBOARD_STARTER.is_dir(), f"missing starter: {DASHBOARD_STARTER}")
+        result = self.run_map(DASHBOARD_STARTER, "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        data = json.loads(result.stdout)
+        routes = {item["route"] for item in data.get("REST routes", [])}
+        self.assertEqual(
+            {"myapp/v1/settings", "myapp/v1/items", "myapp/v1/items/(?P<id>\\d+)"},
+            routes,
+        )
+        markdown = self.run_map(DASHBOARD_STARTER)
+        self.assertIn("## REST routes", markdown.stdout)
+        self.assertIn("myapp/v1/settings", markdown.stdout)
+        self.assertNotIn("<unresolved:", markdown.stdout)
+
+    def test_unresolvable_rest_route_argument_is_marked_not_dropped(self) -> None:
+        """A dynamic namespace still produces a row, marked unresolved rather than omitted."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "routes.php").write_text(
+                "<?php\nregister_rest_route( $this->namespace, '/thing', array(\n"
+                "    'methods' => 'GET',\n) );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("## REST routes", result.stdout)
+            self.assertIn("<unresolved: $this->namespace>/thing", result.stdout)
 
     def test_output_option_writes_the_requested_format(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

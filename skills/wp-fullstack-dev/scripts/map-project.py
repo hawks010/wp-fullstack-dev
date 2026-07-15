@@ -191,6 +191,36 @@ def literal_string(expression: str) -> str | None:
     return match.group(2)
 
 
+CONST_RE = re.compile(
+    r"(?:(?:private|protected|public|final|static)\s+)*const\s+"
+    r"([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(['\"])(.*?)\2",
+)
+CONST_REFERENCE_RE = re.compile(
+    r"\s*(?:self|static|[A-Za-z_\\][A-Za-z0-9_\\]*)::([A-Za-z_][A-Za-z0-9_]*)\s*"
+)
+
+
+def class_constants(text: str) -> dict[str, str]:
+    """Map same-file string class constants by name for bounded ``self::NAME`` resolution."""
+    constants: dict[str, str] = {}
+    for match in CONST_RE.finditer(text):
+        name, _quote, value = match.groups()
+        if "{$" not in value:
+            constants.setdefault(name, value)
+    return constants
+
+
+def resolve_route_argument(expression: str, constants: dict[str, str]) -> str:
+    """Resolve a REST route argument to a literal, a known constant, or an unresolved marker."""
+    value = literal_string(expression)
+    if value is not None:
+        return value
+    reference = CONST_REFERENCE_RE.fullmatch(expression)
+    if reference and reference.group(1) in constants:
+        return constants[reference.group(1)]
+    return f"<unresolved: {compact(expression, 60)}>"
+
+
 def hook_name(expression: str) -> str | None:
     """Return a literal hook name or a conservative dynamic marker."""
     value = literal_string(expression)
@@ -404,6 +434,7 @@ def scan_project(root: Path) -> dict[str, Any]:
 
     for path, text in contents.items():
         rel = relative(path, root)
+        constants = class_constants(text)
         for function, arguments, start, _end in iter_calls(text):
             line = line_number(text, start)
             if function in HOOK_REGISTRATION_FUNCTIONS and len(arguments) >= 2:
@@ -419,10 +450,8 @@ def scan_project(root: Path) -> dict[str, Any]:
                 if name:
                     result["fired"].append({"hook": name, "file": rel, "line": line})
             elif function == "register_rest_route" and len(arguments) >= 2:
-                namespace = literal_string(arguments[0])
-                route = literal_string(arguments[1])
-                if namespace is None or route is None:
-                    continue
+                namespace = resolve_route_argument(arguments[0], constants)
+                route = resolve_route_argument(arguments[1], constants)
                 context = bounded_context(text, start)
                 result["rest"].append(
                     {

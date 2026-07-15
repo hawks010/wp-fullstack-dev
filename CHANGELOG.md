@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.5.1] - 2026-07-15
+### Fixed
+- `scripts/map-project.py`: REST routes registered with a class constant namespace or route (e.g. `register_rest_route( self::NAMESPACE, '/settings', … )`) are now indexed instead of silently dropped. The mapper resolves same-file string class constants for `self::NAME`/`ClassName::NAME` references, and any argument it still cannot resolve is emitted with an `<unresolved: …>` marker rather than omitting the route entirely — an empty section no longer reads as "no REST routes here". This restores the `## REST routes` section for the bundled `dashboard-plugin-starter`, whose controller uses `self::NAMESPACE` for all three endpoints.
+
+### Tests
+- Added a regression test that maps the real `assets/dashboard-plugin-starter` (not a synthetic fixture) and asserts its three `myapp/v1/*` routes are indexed, plus a test that an unresolvable route argument produces a marked row instead of being dropped.
+
 ## [3.5.0] - 2026-07-15
 ### Added
 - `references/troubleshooting.md` covering plugin/theme conflict isolation, caching and stale-state diagnosis, hosting environment variance, and `dbDelta()` formatting gotchas.
