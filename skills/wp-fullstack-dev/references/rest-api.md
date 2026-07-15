@@ -10,4 +10,8 @@ Use a versioned namespace such as `vendor/v1` and a controller class for non-tri
 - For writes, validate the complete business operation before mutation and make retries safe where feasible.
 - Add schema and permission tests for anonymous, unauthorized, malformed, valid, and missing-resource cases.
 
+## Deliberately public endpoints
+
+Some flows are legitimately anonymous (intake forms, unsubscribe links, webhooks). `permission_callback => '__return_true'` is acceptable only when the handler itself enforces a real gate: a hashed bearer token verified with `wp_check_password()`/`hash_equals()`, a signed expiring URL, or a provider signature. Upload endpoints additionally need server-side type/size allowlists and isolated storage. In a project map, every `permission_callback: __return_true` row is a review obligation — confirm the in-handler gate exists and name it in the audit report; never wave one through because "the form is public."
+
 Sanitize on input, authorize before use, and escape in the eventual rendering context. See `security.md`.

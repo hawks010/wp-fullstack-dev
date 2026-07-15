@@ -38,9 +38,9 @@ elif [[ -d wp-content && -f wp-config.php ]]; then
   echo "wordpress-site"
 elif [[ -f package.json ]] && grep -Eq '"@wordpress/components"|"@wordpress/api-fetch"' package.json; then
   echo "dashboard-plugin"
-elif has_plugin_header && search_php 'woocommerce_|WooCommerce|Automattic\\WooCommerce|wc_get_|before_woocommerce|after_woocommerce'; then
+elif has_plugin_header && search_php 'before_woocommerce_init|declare_compatibility|extends[[:space:]]+WC_|new[[:space:]]+WC_|WC\(\)->|wc_get_[a-z_]+\(|add_(action|filter)\([[:space:]]*.woocommerce_'; then
   echo "woocommerce"
-elif has_plugin_header && search_php 'is_multisite|get_sites|switch_to_blog|restore_current_blog|network_wide'; then
+elif has_plugin_header && search_php 'switch_to_blog[[:space:]]*\(|restore_current_blog[[:space:]]*\(|get_sites[[:space:]]*\(|add_site_option|network_admin_menu|Network:[[:space:]]*true'; then
   echo "multisite"
 elif has_plugin_header && search_php 'WP_CLI::add_command|WP_CLI_Command'; then
   echo "wp-cli"

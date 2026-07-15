@@ -9,6 +9,7 @@ This is a best-effort regex scanner, not a PHP or JavaScript parser.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -45,7 +46,17 @@ HEADER_RE = re.compile(r"^[ \t]*(?:\*[ \t]+)?(?:Plugin|Theme) Name:", re.MULTILI
 TABLE_RE = re.compile(r"\$wpdb->prefix\s*\.\s*(['\"])([^'\"]+)\1")
 FUNCTION_RE = re.compile(r"\bfunction\b")
 
+FUNCTION_DEF_RE = re.compile(r"^function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(", re.MULTILINE)
+PLUGIN_HEADER_RE = re.compile(r"^[ \t]*(?:\*[ \t]+)?Plugin Name:", re.MULTILINE | re.IGNORECASE)
+SCHEDULE_RE = re.compile(r"\b(wp_schedule_event|wp_schedule_single_event|as_schedule_single_action|as_schedule_recurring_action|as_enqueue_async_action)\s*\(")
+UNSCHEDULE_RE = re.compile(r"\b(wp_clear_scheduled_hook|wp_unschedule_event|wp_unschedule_hook|as_unschedule_all_actions|as_unschedule_action)\s*\(")
+UNINSTALL_HOOK_RE = re.compile(r"\bregister_uninstall_hook\s*\(")
+DEFINE_RE = re.compile(r"\bdefine\(\s*['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]")
+OPTION_WRITE_FUNCTIONS = {"update_option", "delete_option"}
+IDENTICAL_FILE_MINIMUM_CHARS = 200
+
 SECTION_FILES = "Files"
+SECTION_CONFLICTS = "Cross-component conflicts"
 SECTION_REGISTERED = "Hooks registered (add_action / add_filter)"
 SECTION_FIRED = "Hooks fired (do_action / apply_filters)"
 SECTION_GRAPH = "Hook graph"
@@ -56,6 +67,9 @@ SECTION_SHORTCODES = "Shortcodes"
 SECTION_WPCLI = "WP-CLI commands"
 SECTION_DATABASE = "Database touchpoints"
 SECTION_JAVASCRIPT = "JavaScript entry points"
+SECTION_LIFECYCLE = "Lifecycle risks"
+SECTION_PARALLEL = "Parallel implementations"
+PARALLEL_TOKEN_RE = re.compile(r"^(?:(new|old|legacy)[-_])?(.+?)(?:[-_](new|old|legacy|backup|copy|final|fixed\d*|v\d+))?$", re.IGNORECASE)
 
 
 def parse_args() -> argparse.Namespace:
@@ -113,6 +127,52 @@ def compact(expression: str, limit: int = 120) -> str:
     """Collapse an expression to a readable single line."""
     value = " ".join(expression.strip().split())
     return value if len(value) <= limit else value[: limit - 1] + "…"
+
+
+def blank_comments(text: str, allow_hash: bool = False) -> str:
+    """Blank comments with spaces so offsets and line numbers stay aligned.
+
+    Comment text otherwise poisons the quote/bracket scanners (an apostrophe in a
+    docblock opens a phantom string) and makes commented-out calls look live.
+    """
+    result = list(text)
+    quote = ""
+    escaped = False
+    index = 0
+    length = len(text)
+    while index < length:
+        character = text[index]
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = ""
+            index += 1
+            continue
+        if character in {"'", '"'}:
+            quote = character
+            index += 1
+            continue
+        pair = text[index : index + 2]
+        if pair == "/*":
+            end = text.find("*/", index + 2)
+            end = length if end == -1 else end + 2
+            for position in range(index, end):
+                if result[position] != "\n":
+                    result[position] = " "
+            index = end
+            continue
+        if pair == "//" or (allow_hash and character == "#" and pair != "#["):
+            end = text.find("\n", index)
+            end = length if end == -1 else end
+            for position in range(index, end):
+                result[position] = " "
+            index = end
+            continue
+        index += 1
+    return "".join(result)
 
 
 def extract_parenthesized(text: str, opening: int) -> tuple[str, int] | None:
@@ -191,6 +251,54 @@ def literal_string(expression: str) -> str | None:
     return match.group(2)
 
 
+CONST_RE = re.compile(
+    r"(?:(?:private|protected|public|final|static)\s+)*const\s+"
+    r"([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(['\"])(.*?)\2",
+)
+CONST_REFERENCE_RE = re.compile(
+    r"\s*(self|static|[A-Za-z_\\][A-Za-z0-9_\\]*)::([A-Za-z_][A-Za-z0-9_]*)\s*"
+)
+
+
+def class_constant_scopes(text: str) -> list[dict[str, Any]]:
+    """Map string class constants per class body so ``self::NAME`` stays class-scoped."""
+    scopes: list[dict[str, Any]] = []
+    for match in CLASS_RE.finditer(text):
+        brace = text.find("{", match.end())
+        if brace == -1:
+            continue
+        extracted = extract_parenthesized(text, brace)
+        if not extracted:
+            continue
+        body, end = extracted
+        constants: dict[str, str] = {}
+        for constant in CONST_RE.finditer(body):
+            name, _quote, value = constant.groups()
+            if "{$" not in value:
+                constants.setdefault(name, value)
+        scopes.append({"name": match.group(1), "start": brace, "end": end, "constants": constants})
+    return scopes
+
+
+def resolve_route_argument(expression: str, offset: int, scopes: list[dict[str, Any]]) -> str:
+    """Resolve a REST route argument to a literal, a class constant, or an unresolved marker."""
+    value = literal_string(expression)
+    if value is not None:
+        return value
+    reference = CONST_REFERENCE_RE.fullmatch(expression)
+    if reference:
+        qualifier, name = reference.groups()
+        if qualifier in {"self", "static"}:
+            enclosing = [scope for scope in scopes if scope["start"] <= offset < scope["end"]]
+            scope = max(enclosing, key=lambda item: item["start"], default=None)
+        else:
+            class_name = qualifier.rsplit("\\", 1)[-1]
+            scope = next((item for item in scopes if item["name"] == class_name), None)
+        if scope and name in scope["constants"]:
+            return scope["constants"][name]
+    return f"<unresolved: {compact(expression, 60)}>"
+
+
 def hook_name(expression: str) -> str | None:
     """Return a literal hook name or a conservative dynamic marker."""
     value = literal_string(expression)
@@ -257,32 +365,67 @@ def detect_project_type(root: Path) -> str:
     return value if result.returncode == 0 and value else "unknown"
 
 
-def bounded_context(text: str, offset: int, lines: int = 15) -> str:
-    """Return the call line and a bounded number of following lines."""
-    all_lines = text.splitlines()
-    start = line_number(text, offset) - 1
-    return "\n".join(all_lines[start : start + lines + 1])
+def capture_array_value(expression: str, start: int) -> str:
+    """Capture one array value expression, stopping at its enclosing comma or closer."""
+    stack: list[str] = []
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    closing = {value: key for key, value in pairs.items()}
+    quote = ""
+    escaped = False
+    for index in range(start, len(expression)):
+        character = expression[index]
+        if quote:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == quote:
+                quote = ""
+            continue
+        if character in {"'", '"'}:
+            quote = character
+        elif character in pairs:
+            stack.append(character)
+        elif character in closing:
+            if not stack:
+                return expression[start:index].strip()
+            if stack[-1] == closing[character]:
+                stack.pop()
+        elif character == "," and not stack:
+            return expression[start:index].strip()
+    return expression[start:].strip()
+
+
+def array_key_values(expression: str, key: str) -> list[str]:
+    """Return every value assigned to ``key`` within one call's array argument."""
+    return [
+        capture_array_value(expression, match.end())
+        for match in re.finditer(r"['\"]" + re.escape(key) + r"['\"]\s*=>\s*", expression)
+    ]
 
 
 def permission_callback(context: str) -> str:
-    """Summarize a bounded REST permission callback declaration."""
-    match = re.search(r"['\"]permission_callback['\"]\s*=>\s*([^,\n]+)", context)
-    if not match:
-        return "no"
-    expression = compact(match.group(1), 80)
-    literal = literal_string(expression)
-    if literal:
-        return literal
-    if re.fullmatch(r"[A-Za-z_\\][A-Za-z0-9_:\\]*", expression):
-        return expression
-    return "yes"
+    """Summarize the permission callbacks declared in one route's own arguments."""
+    summaries: list[str] = []
+    for value in array_key_values(context, "permission_callback"):
+        expression = compact(value, 80)
+        literal = literal_string(expression)
+        if literal:
+            summary = literal
+        elif re.fullmatch(r"[A-Za-z_\\][A-Za-z0-9_:\\]*", expression):
+            summary = expression
+        else:
+            summary = "yes"
+        if summary not in summaries:
+            summaries.append(summary)
+    return " | ".join(summaries) if summaries else "no"
 
 
 def rest_methods(context: str) -> str:
-    """Summarize literal or constant REST method declarations in bounded context."""
-    values = []
-    for match in re.finditer(r"['\"]methods['\"]\s*=>\s*([^,\n]+)", context):
-        value = compact(match.group(1), 80)
+    """Summarize literal or constant REST method declarations in one route's arguments."""
+    values: list[str] = []
+    for value in array_key_values(context, "methods"):
+        value = compact(value, 80)
         if value and value not in values:
             values.append(value)
     return " | ".join(values) if values else "UNKNOWN"
@@ -359,6 +502,181 @@ def javascript_entry(path: Path, root: Path, text: str) -> dict[str, Any] | None
     return {"file": relative(path, root), "packages": packages, "exports": sorted(exports)}
 
 
+def component_of(rel: str) -> str:
+    """Return the top-level component directory of a project-relative path."""
+    return rel.split("/", 1)[0]
+
+
+def site_components(files: list[dict[str, Any]]) -> list[str]:
+    """Detect component subdirectories when the scanned root is a multi-component site."""
+    if any("/" not in item["file"] and item["role"] == "bootstrap" for item in files):
+        return []
+    components = sorted(
+        {component_of(item["file"]) for item in files if "/" in item["file"] and item["role"] == "bootstrap"}
+    )
+    return components if len(components) >= 2 else []
+
+
+def cross_component_conflicts(
+    result: dict[str, Any],
+    contents: dict[Path, str],
+    scannable: dict[Path, str],
+    root: Path,
+    components: list[str],
+    option_writes: list[tuple[str, str]],
+) -> dict[str, Any]:
+    """Report duplicated hooks, files, symbols, and option ownership across components."""
+    member = set(components)
+    conflicts: dict[str, Any] = {
+        "duplicate_hooks": [],
+        "identical_files": [],
+        "duplicate_functions": [],
+        "duplicate_constants": [],
+        "contested_option_writes": [],
+    }
+
+    hooks: dict[tuple[str, str], dict[str, list[str]]] = {}
+    for item in result["registered"]:
+        component = component_of(item["file"])
+        if component not in member or item["hook"] == "<dynamic>":
+            continue
+        hooks.setdefault((item["hook"], item["callback"]), {}).setdefault(component, []).append(
+            f"{item['file']}:{item['line']}"
+        )
+    for (hook, callback), by_component in sorted(hooks.items()):
+        if len(by_component) >= 2:
+            conflicts["duplicate_hooks"].append(
+                {
+                    "hook": hook,
+                    "callback": callback,
+                    "locations": sorted(location for group in by_component.values() for location in group),
+                }
+            )
+
+    digests: dict[str, list[tuple[str, str]]] = {}
+    functions: dict[str, dict[str, list[str]]] = {}
+    constants: dict[str, dict[str, list[str]]] = {}
+    for path, text in contents.items():
+        rel = relative(path, root)
+        component = component_of(rel)
+        if component not in member:
+            continue
+        if len(text) >= IDENTICAL_FILE_MINIMUM_CHARS:
+            digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            digests.setdefault(digest, []).append((component, rel))
+        if path.suffix.lower() == ".php":
+            code = scannable[path]
+            for name in set(FUNCTION_DEF_RE.findall(code)):
+                functions.setdefault(name, {}).setdefault(component, []).append(rel)
+            for name in set(DEFINE_RE.findall(code)):
+                constants.setdefault(name, {}).setdefault(component, []).append(rel)
+    for _digest, entries in sorted(digests.items()):
+        if len({component for component, _rel in entries}) >= 2:
+            conflicts["identical_files"].append({"files": sorted(rel for _component, rel in entries)})
+    for table, key in ((functions, "duplicate_functions"), (constants, "duplicate_constants")):
+        for name, by_component in sorted(table.items()):
+            if len(by_component) >= 2:
+                conflicts[key].append(
+                    {"name": name, "files": sorted(rel for group in by_component.values() for rel in group)}
+                )
+
+    writes: dict[str, dict[str, list[str]]] = {}
+    for option, rel in option_writes:
+        component = component_of(rel)
+        if component in member:
+            writes.setdefault(option, {}).setdefault(component, []).append(rel)
+    for option, by_component in sorted(writes.items()):
+        if len(by_component) >= 2:
+            conflicts["contested_option_writes"].append(
+                {"option": option, "files": sorted(rel for group in by_component.values() for rel in group)}
+            )
+    return conflicts
+
+
+def lifecycle_risks(
+    contents: dict[Path, str],
+    scannable: dict[Path, str],
+    root: Path,
+    option_writes: list[tuple[str, str]],
+    tables: list[dict[str, Any]],
+) -> list[str]:
+    """Report plugin lifecycle gaps: persistent state with no uninstall or unschedule path."""
+    is_plugin = False
+    has_uninstall = False
+    schedules: list[str] = []
+    unschedules = False
+    for path, text in contents.items():
+        if path.suffix.lower() != ".php":
+            continue
+        rel = relative(path, root)
+        code = scannable[path]
+        if PLUGIN_HEADER_RE.search(text):
+            is_plugin = True
+        if path.name == "uninstall.php" or UNINSTALL_HOOK_RE.search(code):
+            has_uninstall = True
+        for match in SCHEDULE_RE.finditer(code):
+            schedules.append(f"{rel}:{line_number(code, match.start())} ({match.group(1)})")
+        if UNSCHEDULE_RE.search(code):
+            unschedules = True
+    if not is_plugin:
+        return []
+    risks: list[str] = []
+    if (option_writes or tables) and not has_uninstall:
+        persisted = sorted({key for key, _rel in option_writes})
+        summary = []
+        if persisted:
+            summary.append(f"writes {len(persisted)} option(s): {', '.join(persisted[:6])}")
+        if tables:
+            summary.append(f"creates {len(tables)} custom table(s)")
+        risks.append(
+            "Persists data ("
+            + "; ".join(summary)
+            + ") but ships no uninstall.php or register_uninstall_hook. "
+            "Decide the uninstall contract explicitly: delete, or deliberately retain with a stated reason."
+        )
+    if schedules and not unschedules:
+        risks.append(
+            "Schedules events ("
+            + ", ".join(schedules[:4])
+            + ") but never unschedules anywhere. Deactivation must remove scheduled runtime state."
+        )
+    return risks
+
+
+def parallel_implementations(files: list[dict[str, Any]]) -> list[str]:
+    """Flag sibling files or directories that differ only by a version/staleness token.
+
+    ``admin/`` next to ``admin-new/`` (or ``functions-old.php`` next to
+    ``functions.php``) is patch-on-patch inside one component: two parallel
+    implementations with no single owner.
+    """
+    names_by_parent: dict[str, set[str]] = {}
+    for item in files:
+        parts = item["file"].split("/")
+        for depth in range(len(parts)):
+            parent = "/".join(parts[:depth])
+            names_by_parent.setdefault(parent, set()).add(parts[depth])
+    findings: list[str] = []
+    seen: set[tuple[str, str, str]] = set()
+    for parent, names in sorted(names_by_parent.items()):
+        for name in sorted(names):
+            stem, dot, suffix = name.partition(".")
+            match = PARALLEL_TOKEN_RE.fullmatch(stem)
+            if not match or (not match.group(1) and not match.group(3)):
+                continue
+            base = match.group(2) + (dot + suffix if dot else "")
+            if base in names and base != name:
+                key = (parent, base, name)
+                if key not in seen:
+                    seen.add(key)
+                    location = f"{parent}/" if parent else ""
+                    findings.append(
+                        f"{location}{name} and {location}{base} — parallel implementations; "
+                        "consolidate into one owner and delete the stale copy"
+                    )
+    return findings
+
+
 def scan_project(root: Path) -> dict[str, Any]:
     """Scan a project and return structured, stable map data."""
     paths = source_files(root)
@@ -386,6 +704,7 @@ def scan_project(root: Path) -> dict[str, Any]:
         "javascript": [],
     }
 
+    option_writes: list[tuple[str, str]] = []
     block_definitions: list[dict[str, Any]] = []
     for path, text in contents.items():
         rel = relative(path, root)
@@ -402,9 +721,17 @@ def scan_project(root: Path) -> dict[str, Any]:
                 block_definitions.append(definition)
                 result["blocks"].append({key: definition[key] for key in ("name", "file", "dynamic")})
 
-    for path, text in contents.items():
+    scannable: dict[Path, str] = {
+        path: blank_comments(text, allow_hash=path.suffix.lower() == ".php")
+        if path.suffix.lower() in {".php", ".js", ".jsx"}
+        else text
+        for path, text in contents.items()
+    }
+
+    for path, text in scannable.items():
         rel = relative(path, root)
-        for function, arguments, start, _end in iter_calls(text):
+        scopes = class_constant_scopes(text)
+        for function, arguments, start, end in iter_calls(text):
             line = line_number(text, start)
             if function in HOOK_REGISTRATION_FUNCTIONS and len(arguments) >= 2:
                 name = hook_name(arguments[0])
@@ -419,11 +746,9 @@ def scan_project(root: Path) -> dict[str, Any]:
                 if name:
                     result["fired"].append({"hook": name, "file": rel, "line": line})
             elif function == "register_rest_route" and len(arguments) >= 2:
-                namespace = literal_string(arguments[0])
-                route = literal_string(arguments[1])
-                if namespace is None or route is None:
-                    continue
-                context = bounded_context(text, start)
+                namespace = resolve_route_argument(arguments[0], start, scopes)
+                route = resolve_route_argument(arguments[1], start, scopes)
+                context = arguments[2] if len(arguments) >= 3 else ""
                 result["rest"].append(
                     {
                         "route": namespace.rstrip("/") + "/" + route.lstrip("/"),
@@ -450,7 +775,7 @@ def scan_project(root: Path) -> dict[str, Any]:
                         block = {
                             "name": name,
                             "file": rel,
-                            "dynamic": "render_callback" in bounded_context(text, start),
+                            "dynamic": "render_callback" in text[start:end],
                         }
                 if block and not any(item["name"] == block["name"] for item in result["blocks"]):
                     result["blocks"].append({key: block[key] for key in ("name", "file", "dynamic")})
@@ -466,6 +791,8 @@ def scan_project(root: Path) -> dict[str, Any]:
                 key = literal_string(arguments[0])
                 if key:
                     result["options"].add(key)
+                    if function in OPTION_WRITE_FUNCTIONS:
+                        option_writes.append((key, rel))
             elif function in TRANSIENT_FUNCTIONS and arguments:
                 key = literal_string(arguments[0])
                 if key:
@@ -499,6 +826,14 @@ def scan_project(root: Path) -> dict[str, Any]:
         result[key] = sorted(result[key], key=lambda item: tuple(str(value) for value in item.values()))
     result["options"] = sorted(result["options"])
     result["transients"] = sorted(result["transients"])
+    result["lifecycle"] = lifecycle_risks(contents, scannable, root, option_writes, result["tables"])
+    result["parallel"] = parallel_implementations(result["files"])
+    result["components"] = site_components(result["files"])
+    result["conflicts"] = (
+        cross_component_conflicts(result, contents, scannable, root, result["components"], option_writes)
+        if result["components"]
+        else {}
+    )
     return result
 
 
@@ -509,6 +844,29 @@ def markdown(data: dict[str, Any]) -> str:
     if data["files"]:
         lines.extend(["", f"## {SECTION_FILES}"])
         lines.extend(f"{item['file']} — {item['role']}" for item in data["files"])
+    if data["components"]:
+        conflicts = data["conflicts"]
+        lines.extend(["", f"## {SECTION_CONFLICTS} ({len(data['components'])} components: {', '.join(data['components'])})"])
+        if not any(conflicts.values()):
+            lines.append("None detected: no duplicate hooks, identical files, duplicated symbols, or contested option writes.")
+        if conflicts["duplicate_hooks"]:
+            lines.append("Duplicate hook registrations (same hook and callback in more than one component):")
+            lines.extend(
+                f"`{item['hook']}` → {item['callback']} — {', '.join(item['locations'])}"
+                for item in conflicts["duplicate_hooks"]
+            )
+        if conflicts["identical_files"]:
+            lines.append("Identical files shipped by more than one component:")
+            lines.extend(" == ".join(item["files"]) for item in conflicts["identical_files"])
+        if conflicts["duplicate_functions"]:
+            lines.append("Functions defined in more than one component (fatal redeclaration risk):")
+            lines.extend(f"{item['name']}() — {', '.join(item['files'])}" for item in conflicts["duplicate_functions"])
+        if conflicts["duplicate_constants"]:
+            lines.append("Constants defined in more than one component (drift risk):")
+            lines.extend(f"{item['name']} — {', '.join(item['files'])}" for item in conflicts["duplicate_constants"])
+        if conflicts["contested_option_writes"]:
+            lines.append("Options written by more than one component (contested ownership):")
+            lines.extend(f"{item['option']} — {', '.join(item['files'])}" for item in conflicts["contested_option_writes"])
     if data["registered"]:
         lines.extend(["", f"## {SECTION_REGISTERED}"])
         lines.extend(
@@ -563,6 +921,12 @@ def markdown(data: dict[str, Any]) -> str:
             packages = ", ".join(item["packages"]) if item["packages"] else "none"
             exports = ", ".join(item["exports"]) if item["exports"] else "none"
             lines.append(f"{item['file']} — WP packages used: {packages}, exports: {exports}")
+    if data["lifecycle"]:
+        lines.extend(["", f"## {SECTION_LIFECYCLE}"])
+        lines.extend(data["lifecycle"])
+    if data["parallel"]:
+        lines.extend(["", f"## {SECTION_PARALLEL}"])
+        lines.extend(data["parallel"])
     return "\n".join(lines) + "\n"
 
 
@@ -573,6 +937,10 @@ def json_document(data: dict[str, Any]) -> str:
     }
     sections = (
         (SECTION_FILES, data["files"]),
+        (
+            SECTION_CONFLICTS,
+            {"components": data["components"], **data["conflicts"]} if data["components"] else None,
+        ),
         (SECTION_REGISTERED, data["registered"]),
         (SECTION_FIRED, data["fired"]),
         (SECTION_GRAPH, data["graph"]),
@@ -592,6 +960,8 @@ def json_document(data: dict[str, Any]) -> str:
             else None,
         ),
         (SECTION_JAVASCRIPT, data["javascript"]),
+        (SECTION_LIFECYCLE, data["lifecycle"]),
+        (SECTION_PARALLEL, data["parallel"]),
     )
     for name, value in sections:
         if value:

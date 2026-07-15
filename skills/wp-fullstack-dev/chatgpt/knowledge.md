@@ -134,3 +134,19 @@
 - Use service containers (Dependency Injection) for larger plugins.
 - Separate business logic from presentation using MVC or a basic `includes/` → `templates/` separation.
 - Hook early (`plugins_loaded`) but execute logic only after necessary dependencies.
+
+## 16. Systematic Debugging (per layer)
+- **Iron law**: no fixes without root-cause investigation. Reproduce first; read the real error text; check recent changes.
+- **PHP**: enable `WP_DEBUG` + `WP_DEBUG_LOG` on staging and read `wp-content/debug.log`; use Query Monitor for hooks/queries/capabilities; run PHPStan and PHPCS where configured. Conflict isolation: deactivate all plugins, reactivate one at a time.
+- **REST/AJAX**: request the endpoint directly (curl/fetch) with and without auth before blaming the frontend.
+- **JS/React**: capture the browser console (errors, warnings, uncaught exceptions), failed network requests, and HTTP 4xx/5xx; `SCRIPT_DEBUG` swaps minified WordPress bundles for readable ones; wait for network-idle before inspecting dynamic pages.
+- **CSS/HTML**: inspect the rendered DOM, not the source; validate semantic structure; measure real computed contrast.
+- **Three strikes**: after three failed fix attempts, stop patching — question the architecture and propose a design change.
+- A bug is fixed only when the original reproduction passes and a regression test exists.
+
+## 17. Component Ownership & Shipping Hygiene
+- One component owns each behavior; themes are presentation-only; business logic lives in plugins so it survives theme switches.
+- Never copy code between components — move it and delete the source in the same change. Duplicate functions/constants across active components risk fatal redeclaration; duplicate hook registrations run side effects twice.
+- Coordinate components with real capability checks (`function_exists`, versioned constants), never a stub hardcoded to one answer.
+- Plugins that persist options or custom tables must ship an explicit uninstall contract (`uninstall.php` — delete, or deliberately retain with a stated reason). Deactivation must unschedule the plugin's cron/Action Scheduler events; data is retained, runtime state is not.
+- Never ship `.bak` files, `error_log` dumps, `.DS_Store`, or dead commented-out modules. Delete dead code; version control remembers it.

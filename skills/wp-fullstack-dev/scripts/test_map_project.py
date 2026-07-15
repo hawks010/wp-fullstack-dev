@@ -15,6 +15,7 @@ from pathlib import Path
 
 MAP_SCRIPT = Path(__file__).with_name("map-project.py")
 SCAFFOLD_SCRIPT = Path(__file__).with_name("scaffold.py")
+DASHBOARD_STARTER = MAP_SCRIPT.parent.parent / "assets" / "dashboard-plugin-starter"
 PROJECT_TYPES = (
     "plugin",
     "dashboard",
@@ -215,6 +216,314 @@ function acme_install() {
             self.assertEqual("bootstrap", roles["plugin.php"])
             self.assertEqual("React entry/component", roles["src/index.js"])
             self.assertNotIn("excluded_dependency_hook", result.stdout)
+
+    def test_indexes_rest_routes_declared_with_class_constants(self) -> None:
+        """The bundled dashboard controller registers routes via ``self::NAMESPACE``."""
+        self.assertTrue(DASHBOARD_STARTER.is_dir(), f"missing starter: {DASHBOARD_STARTER}")
+        result = self.run_map(DASHBOARD_STARTER, "json")
+        self.assertEqual(0, result.returncode, result.stderr)
+        data = json.loads(result.stdout)
+        routes = {item["route"] for item in data.get("REST routes", [])}
+        self.assertEqual(
+            {"myapp/v1/settings", "myapp/v1/items", "myapp/v1/items/(?P<id>\\d+)"},
+            routes,
+        )
+        markdown = self.run_map(DASHBOARD_STARTER)
+        self.assertIn("## REST routes", markdown.stdout)
+        self.assertIn("myapp/v1/settings", markdown.stdout)
+        self.assertNotIn("<unresolved:", markdown.stdout)
+
+    def test_unresolvable_rest_route_argument_is_marked_not_dropped(self) -> None:
+        """A dynamic namespace still produces a row, marked unresolved rather than omitted."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "routes.php").write_text(
+                "<?php\nregister_rest_route( $this->namespace, '/thing', array(\n"
+                "    'methods' => 'GET',\n) );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("## REST routes", result.stdout)
+            self.assertIn("<unresolved: $this->namespace>/thing", result.stdout)
+
+    def test_rest_metadata_does_not_bleed_between_adjacent_routes(self) -> None:
+        """An open route must not inherit methods or permission_callback from a neighbor."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "routes.php").write_text(
+                "<?php\n"
+                "register_rest_route( 'ns/v1', '/public-open', array(\n"
+                "    'methods' => 'GET',\n"
+                ") );\n"
+                "register_rest_route( 'ns/v1', '/admin-only', array(\n"
+                "    'methods' => 'POST',\n"
+                "    'permission_callback' => 'is_admin_cb',\n"
+                ") );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target, "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            routes = {item["route"]: item for item in json.loads(result.stdout)["REST routes"]}
+            self.assertEqual("no", routes["ns/v1/public-open"]["permission_callback"])
+            self.assertEqual("'GET'", routes["ns/v1/public-open"]["methods"])
+            self.assertEqual("is_admin_cb", routes["ns/v1/admin-only"]["permission_callback"])
+            self.assertEqual("'POST'", routes["ns/v1/admin-only"]["methods"])
+
+    def test_same_named_constants_resolve_within_their_own_class(self) -> None:
+        """Two classes sharing a constant name must each resolve to their own value."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "controllers.php").write_text(
+                "<?php\n"
+                "class Alpha_Controller {\n"
+                "    private const NS = 'alpha/v1';\n"
+                "    public function register(): void {\n"
+                "        register_rest_route( self::NS, '/a', array( 'methods' => 'GET' ) );\n"
+                "    }\n"
+                "}\n"
+                "class Beta_Controller {\n"
+                "    private const NS = 'beta/v2';\n"
+                "    public function register(): void {\n"
+                "        register_rest_route( self::NS, '/b', array( 'methods' => 'POST' ) );\n"
+                "    }\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target, "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            routes = {item["route"] for item in json.loads(result.stdout)["REST routes"]}
+            self.assertEqual({"alpha/v1/a", "beta/v2/b"}, routes)
+
+    def test_trailing_methods_value_excludes_closing_brackets(self) -> None:
+        """A methods value that ends the array must not capture the closing `) );`."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "routes.php").write_text(
+                "<?php\nregister_rest_route( 'ns/v1', '/one-liner', array( 'methods' => 'GET' ) );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target, "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual("'GET'", json.loads(result.stdout)["REST routes"][0]["methods"])
+
+    def test_static_block_next_to_dynamic_block_stays_static(self) -> None:
+        """A static block registration must not inherit a neighbor's render_callback."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "blocks.php").write_text(
+                "<?php\n"
+                "register_block_type( 'acme/static-card' );\n"
+                "register_block_type( 'acme/dynamic-card', array( 'render_callback' => 'acme_render' ) );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target, "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            blocks = {item["name"]: item["dynamic"] for item in json.loads(result.stdout)["Blocks"]}
+            self.assertEqual({"acme/static-card": False, "acme/dynamic-card": True}, blocks)
+
+    GUARD_MODULE = (
+        "<?php\n"
+        "// Duplicated operational guard used to reproduce theme/plugin layering decay.\n"
+        "define( 'DEMO_ALERT_EMAIL', 'ops@example.com' );\n"
+        "function demo_guard_run() {\n"
+        "    update_option( 'demo_shared_state', time() );\n"
+        "}\n"
+        "function demo_guard_schedule() {\n"
+        "    if ( ! wp_next_scheduled( 'demo_guard_event' ) ) {\n"
+        "        wp_schedule_event( time(), 'daily', 'demo_guard_event' );\n"
+        "    }\n"
+        "}\n"
+        "add_action( 'init', 'demo_guard_run' );\n"
+        "add_action( 'after_setup_theme', 'demo_guard_schedule' );\n"
+    )
+
+    def write_site(self, root: Path, duplicate_guard: bool) -> None:
+        """Create a two-component site; optionally duplicate the guard module in both."""
+        theme = root / "demo-theme"
+        plugin = root / "demo-plugin"
+        (theme / "inc").mkdir(parents=True)
+        (plugin / "includes").mkdir(parents=True)
+        (theme / "style.css").write_text("/*\nTheme Name: Demo Theme\n*/\n", encoding="utf-8")
+        (plugin / "demo-plugin.php").write_text(
+            "<?php\n/**\n * Plugin Name: Demo Plugin\n */\n", encoding="utf-8"
+        )
+        (plugin / "includes" / "guard.php").write_text(self.GUARD_MODULE, encoding="utf-8")
+        if duplicate_guard:
+            (theme / "inc" / "guard.php").write_text(self.GUARD_MODULE, encoding="utf-8")
+
+    def test_site_audit_reports_cross_component_conflicts(self) -> None:
+        """A theme/plugin pair shipping the same module must surface every conflict class."""
+        with tempfile.TemporaryDirectory() as directory:
+            self.write_site(Path(directory), duplicate_guard=True)
+            result = self.run_map(Path(directory), "json")
+            self.assertEqual(0, result.returncode, result.stderr)
+            section = json.loads(result.stdout)["Cross-component conflicts"]
+            self.assertEqual(["demo-plugin", "demo-theme"], section["components"])
+            hooks = {(item["hook"], item["callback"]) for item in section["duplicate_hooks"]}
+            self.assertIn(("init", "'demo_guard_run'"), hooks)
+            self.assertIn(("after_setup_theme", "'demo_guard_schedule'"), hooks)
+            self.assertEqual(
+                ["demo-plugin/includes/guard.php", "demo-theme/inc/guard.php"],
+                section["identical_files"][0]["files"],
+            )
+            functions = {item["name"] for item in section["duplicate_functions"]}
+            self.assertEqual({"demo_guard_run", "demo_guard_schedule"}, functions)
+            self.assertEqual("DEMO_ALERT_EMAIL", section["duplicate_constants"][0]["name"])
+            self.assertEqual("demo_shared_state", section["contested_option_writes"][0]["option"])
+            markdown = self.run_map(Path(directory))
+            self.assertIn("## Cross-component conflicts (2 components:", markdown.stdout)
+            self.assertIn("fatal redeclaration risk", markdown.stdout)
+
+    def test_clean_multi_component_site_reports_no_conflicts_explicitly(self) -> None:
+        """A clean site must state that the audit ran and found nothing, not stay silent."""
+        with tempfile.TemporaryDirectory() as directory:
+            self.write_site(Path(directory), duplicate_guard=False)
+            result = self.run_map(Path(directory))
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("## Cross-component conflicts (2 components:", result.stdout)
+            self.assertIn("None detected", result.stdout)
+
+    def test_single_project_map_has_no_conflicts_section(self) -> None:
+        """Mapping one project root must not enter site-audit mode."""
+        result = self.run_map(DASHBOARD_STARTER)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertNotIn("Cross-component conflicts", result.stdout)
+
+    def test_lifecycle_risks_flag_persistence_without_uninstall_and_orphan_schedules(self) -> None:
+        """A plugin that persists data with no uninstall path and schedules without unscheduling is flagged."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "plugin.php").write_text(
+                "<?php\n/**\n * Plugin Name: Lifecycle Fixture\n */\n"
+                "update_option( 'lifecycle_state', 1 );\n"
+                "wp_schedule_event( time(), 'daily', 'lifecycle_event' );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("## Lifecycle risks", result.stdout)
+            self.assertIn("no uninstall.php or register_uninstall_hook", result.stdout)
+            self.assertIn("never unschedules", result.stdout)
+
+    def test_lifecycle_risks_absent_when_uninstall_and_unschedule_exist(self) -> None:
+        """Providing uninstall.php and an unschedule call clears both lifecycle risks."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "plugin.php").write_text(
+                "<?php\n/**\n * Plugin Name: Lifecycle Fixture\n */\n"
+                "update_option( 'lifecycle_state', 1 );\n"
+                "wp_schedule_event( time(), 'daily', 'lifecycle_event' );\n"
+                "register_deactivation_hook( __FILE__, function () {\n"
+                "    wp_clear_scheduled_hook( 'lifecycle_event' );\n"
+                "} );\n",
+                encoding="utf-8",
+            )
+            (target / "uninstall.php").write_text(
+                "<?php\ndelete_option( 'lifecycle_state' );\n", encoding="utf-8"
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertNotIn("## Lifecycle risks", result.stdout)
+
+    def test_lifecycle_risks_do_not_apply_to_themes(self) -> None:
+        """Themes are not plugins: no uninstall contract is expected of them."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "style.css").write_text("/*\nTheme Name: Demo\n*/\n", encoding="utf-8")
+            (target / "functions.php").write_text(
+                "<?php\nupdate_option( 'theme_state', 1 );\n", encoding="utf-8"
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertNotIn("## Lifecycle risks", result.stdout)
+
+    def test_apostrophe_in_docblock_does_not_break_constant_resolution(self) -> None:
+        """A docblock apostrophe (e.g. "don't") must not desync class-body scanning."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "controller.php").write_text(
+                "<?php\n"
+                "final class Demo_Retention {\n"
+                "    const NAMESPACE = 'demo/v1';\n"
+                "    /**\n"
+                "     * Stamp a UID if they don't have one.\n"
+                "     */\n"
+                "    public function register(): void {\n"
+                "        register_rest_route(self::NAMESPACE, '/unsubscribe', array(\n"
+                "            'methods' => 'GET',\n"
+                "            'permission_callback' => '__return_true',\n"
+                "        ));\n"
+                "    }\n"
+                "}\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("`demo/v1/unsubscribe`", result.stdout)
+            self.assertNotIn("<unresolved:", result.stdout)
+
+    def test_commented_out_calls_are_not_indexed_as_live(self) -> None:
+        """Dead commented-out registrations must not appear in the map."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "hooks.php").write_text(
+                "<?php\n"
+                "// add_action( 'init', 'dead_callback' );\n"
+                "/* add_shortcode( 'dead_tag', 'dead_render' ); */\n"
+                "# update_option( 'dead_option', 1 );\n"
+                "add_action( 'init', 'live_callback' );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("live_callback", result.stdout)
+            self.assertNotIn("dead_callback", result.stdout)
+            self.assertNotIn("dead_tag", result.stdout)
+            self.assertNotIn("dead_option", result.stdout)
+
+    def test_slashes_inside_string_literals_are_not_comments(self) -> None:
+        """A URL in a string must survive comment blanking."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "urls.php").write_text(
+                "<?php\nadd_shortcode( 'promo', 'render_promo' );\n"
+                "update_option( 'promo_url', 'https://example.com/offer' );\n",
+                encoding="utf-8",
+            )
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("promo_url", result.stdout)
+            self.assertIn("`[promo]`", result.stdout)
+
+    def test_parallel_implementation_trees_are_flagged(self) -> None:
+        """Sibling admin/ and admin-new/ trees (or -old files) are patch-on-patch to flag."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "admin").mkdir()
+            (target / "admin-new").mkdir()
+            (target / "admin" / "page.php").write_text("<?php\n", encoding="utf-8")
+            (target / "admin-new" / "page.php").write_text("<?php // rewrite\n", encoding="utf-8")
+            (target / "functions.php").write_text("<?php\n", encoding="utf-8")
+            (target / "functions-old.php").write_text("<?php // stale\n", encoding="utf-8")
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("## Parallel implementations", result.stdout)
+            self.assertIn("admin-new and admin", result.stdout)
+            self.assertIn("functions-old.php and functions.php", result.stdout)
+
+    def test_parallel_detection_ignores_unrelated_names(self) -> None:
+        """Distinct modules (fix-engine.js vs engine.js style prefixes) are not false positives."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            assets = target / "assets"
+            assets.mkdir()
+            (assets / "engine.js").write_text("export {};\n", encoding="utf-8")
+            (assets / "fix-engine.js").write_text("export {};\n", encoding="utf-8")
+            (assets / "front.css").write_text("body{}\n", encoding="utf-8")
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertNotIn("## Parallel implementations", result.stdout)
 
     def test_output_option_writes_the_requested_format(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
