@@ -68,6 +68,8 @@ SECTION_WPCLI = "WP-CLI commands"
 SECTION_DATABASE = "Database touchpoints"
 SECTION_JAVASCRIPT = "JavaScript entry points"
 SECTION_LIFECYCLE = "Lifecycle risks"
+SECTION_PARALLEL = "Parallel implementations"
+PARALLEL_TOKEN_RE = re.compile(r"^(?:(new|old|legacy)[-_])?(.+?)(?:[-_](new|old|legacy|backup|copy|final|fixed\d*|v\d+))?$", re.IGNORECASE)
 
 
 def parse_args() -> argparse.Namespace:
@@ -641,6 +643,40 @@ def lifecycle_risks(
     return risks
 
 
+def parallel_implementations(files: list[dict[str, Any]]) -> list[str]:
+    """Flag sibling files or directories that differ only by a version/staleness token.
+
+    ``admin/`` next to ``admin-new/`` (or ``functions-old.php`` next to
+    ``functions.php``) is patch-on-patch inside one component: two parallel
+    implementations with no single owner.
+    """
+    names_by_parent: dict[str, set[str]] = {}
+    for item in files:
+        parts = item["file"].split("/")
+        for depth in range(len(parts)):
+            parent = "/".join(parts[:depth])
+            names_by_parent.setdefault(parent, set()).add(parts[depth])
+    findings: list[str] = []
+    seen: set[tuple[str, str, str]] = set()
+    for parent, names in sorted(names_by_parent.items()):
+        for name in sorted(names):
+            stem, dot, suffix = name.partition(".")
+            match = PARALLEL_TOKEN_RE.fullmatch(stem)
+            if not match or (not match.group(1) and not match.group(3)):
+                continue
+            base = match.group(2) + (dot + suffix if dot else "")
+            if base in names and base != name:
+                key = (parent, base, name)
+                if key not in seen:
+                    seen.add(key)
+                    location = f"{parent}/" if parent else ""
+                    findings.append(
+                        f"{location}{name} and {location}{base} — parallel implementations; "
+                        "consolidate into one owner and delete the stale copy"
+                    )
+    return findings
+
+
 def scan_project(root: Path) -> dict[str, Any]:
     """Scan a project and return structured, stable map data."""
     paths = source_files(root)
@@ -791,6 +827,7 @@ def scan_project(root: Path) -> dict[str, Any]:
     result["options"] = sorted(result["options"])
     result["transients"] = sorted(result["transients"])
     result["lifecycle"] = lifecycle_risks(contents, scannable, root, option_writes, result["tables"])
+    result["parallel"] = parallel_implementations(result["files"])
     result["components"] = site_components(result["files"])
     result["conflicts"] = (
         cross_component_conflicts(result, contents, scannable, root, result["components"], option_writes)
@@ -887,6 +924,9 @@ def markdown(data: dict[str, Any]) -> str:
     if data["lifecycle"]:
         lines.extend(["", f"## {SECTION_LIFECYCLE}"])
         lines.extend(data["lifecycle"])
+    if data["parallel"]:
+        lines.extend(["", f"## {SECTION_PARALLEL}"])
+        lines.extend(data["parallel"])
     return "\n".join(lines) + "\n"
 
 
@@ -921,6 +961,7 @@ def json_document(data: dict[str, Any]) -> str:
         ),
         (SECTION_JAVASCRIPT, data["javascript"]),
         (SECTION_LIFECYCLE, data["lifecycle"]),
+        (SECTION_PARALLEL, data["parallel"]),
     )
     for name, value in sections:
         if value:

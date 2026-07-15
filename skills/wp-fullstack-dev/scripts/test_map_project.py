@@ -496,6 +496,35 @@ function acme_install() {
             self.assertIn("promo_url", result.stdout)
             self.assertIn("`[promo]`", result.stdout)
 
+    def test_parallel_implementation_trees_are_flagged(self) -> None:
+        """Sibling admin/ and admin-new/ trees (or -old files) are patch-on-patch to flag."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "admin").mkdir()
+            (target / "admin-new").mkdir()
+            (target / "admin" / "page.php").write_text("<?php\n", encoding="utf-8")
+            (target / "admin-new" / "page.php").write_text("<?php // rewrite\n", encoding="utf-8")
+            (target / "functions.php").write_text("<?php\n", encoding="utf-8")
+            (target / "functions-old.php").write_text("<?php // stale\n", encoding="utf-8")
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertIn("## Parallel implementations", result.stdout)
+            self.assertIn("admin-new and admin", result.stdout)
+            self.assertIn("functions-old.php and functions.php", result.stdout)
+
+    def test_parallel_detection_ignores_unrelated_names(self) -> None:
+        """Distinct modules (fix-engine.js vs engine.js style prefixes) are not false positives."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            assets = target / "assets"
+            assets.mkdir()
+            (assets / "engine.js").write_text("export {};\n", encoding="utf-8")
+            (assets / "fix-engine.js").write_text("export {};\n", encoding="utf-8")
+            (assets / "front.css").write_text("body{}\n", encoding="utf-8")
+            result = self.run_map(target)
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertNotIn("## Parallel implementations", result.stdout)
+
     def test_output_option_writes_the_requested_format(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "project"

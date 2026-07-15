@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.9.0] - 2026-07-15
+### Fixed
+- `scripts/detect-project.sh` now requires structural evidence instead of word mentions: WooCommerce classification needs real API usage (`before_woocommerce_init`, `declare_compatibility`, `extends WC_`, `wc_get_*()`, or hooking a `woocommerce_*` hook), and multisite needs real calls (`switch_to_blog()`, `get_sites()`, `add_site_option`, `network_admin_menu`, or a `Network: true` header). Plugins that merely *mention* those words — compatibility scanners listing them as patterns — no longer misclassify.
+
+### Added
+- `scripts/map-project.py` `Parallel implementations` section: flags sibling files or directories that differ only by a staleness token (`admin/` vs `admin-new/`, `functions.php` vs `functions-old.php`, `-legacy`, `-backup`, `-v2`, …) — patch-on-patch inside a single component, where two implementations coexist with no single owner.
+
+### Tests
+- Detector regression for scanner-vocabulary mentions; parallel-tree detection positive and false-positive cases.
+
 ## [3.8.0] - 2026-07-15
 ### Fixed
 - `scripts/map-project.py` is now comment-aware: PHP/JS comments are blanked (offset-preserving) before scanning. Previously an apostrophe inside a docblock ("don't") opened a phantom string that desynced class-body extraction — silently downgrading constant-based REST routes to `<unresolved:>` — and commented-out `add_action`/`add_shortcode`/`update_option` lines were indexed as live registrations. Plugin/theme headers (which live in comments) and file hashing still use the original text; PHP `#[Attribute]` syntax is preserved.

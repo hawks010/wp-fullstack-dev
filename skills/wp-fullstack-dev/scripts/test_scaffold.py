@@ -237,6 +237,27 @@ class ScaffoldTest(unittest.TestCase):
                     self.assertEqual(0, result.returncode, result.stderr)
                     self.assertEqual(expected, result.stdout.strip())
 
+    def test_project_detector_ignores_scanner_vocabulary_mentions(self) -> None:
+        """A plugin that merely mentions WooCommerce/multisite words (e.g. a compatibility
+        scanner listing them as patterns) must not be classified as that specialization."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory)
+            (target / "plugin.php").write_text(
+                "<?php\n/**\n * Plugin Name: Scanner Fixture\n */\n"
+                "add_action( 'init', 'scanner_init' );\n"
+                "$patterns = array( 'woocommerce_', 'WooCommerce', 'is_multisite', 'network_wide' );\n"
+                "// Checks whether WooCommerce or multisite features exist on the site.\n",
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [str(DETECT_SCRIPT), str(target)],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertEqual("plugin", result.stdout.strip())
+
     def test_project_detector_prefers_dashboard_dependencies_over_hpos_boilerplate(self) -> None:
         dashboard_starter = SCRIPT.parent.parent / "assets" / "dashboard-plugin-starter"
         result = subprocess.run(
