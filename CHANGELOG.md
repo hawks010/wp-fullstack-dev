@@ -1,5 +1,9 @@
 # Changelog
 
+## [3.0.1] - 2026-07-15
+### Fixed
+- Locked Composer dependencies for the PHP 8.2 CI baseline so plugin and dashboard starter tests install reproducibly.
+
 ## [3.0.0] - 2026-07-15
 ### Added
 - Installable Codex plugin manifest and repository marketplace metadata.
