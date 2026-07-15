@@ -1,5 +1,10 @@
 # Changelog
 
+## [3.9.1] - 2026-07-15
+### Changed
+- Synced descriptions across surfaces with the v3.6–3.9 capability set ahead of merging to `main`: `SKILL.md` frontmatter (used for routing), `README.md` (install instructions, "What ships", "Why this repository exists"), and `.agents/plugins/marketplace.json` now describe the site-audit mapper, lifecycle-risk detection, parallel-implementation detection, debugging methodology, and browser runtime audit.
+- `.codex-plugin/plugin.json` version corrected to 3.9.0 (had drifted behind two feature releases).
+
 ## [3.9.0] - 2026-07-15
 ### Fixed
 - `scripts/detect-project.sh` now requires structural evidence instead of word mentions: WooCommerce classification needs real API usage (`before_woocommerce_init`, `declare_compatibility`, `extends WC_`, `wc_get_*()`, or hooking a `woocommerce_*` hook), and multisite needs real calls (`switch_to_blog()`, `get_sites()`, `add_site_option`, `network_admin_menu`, or a `Network: true` header). Plugins that merely *mention* those words — compatibility scanners listing them as patterns — no longer misclassify.

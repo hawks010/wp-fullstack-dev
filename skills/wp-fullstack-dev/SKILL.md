@@ -1,6 +1,6 @@
 ---
 name: wp-fullstack-dev
-description: Build, modify, debug, audit, test, validate, and package WordPress plugins, themes, Gutenberg blocks, React admin dashboards, REST APIs, WooCommerce extensions, multisite features, and WP-CLI commands. Use for new scaffolds, safe changes to existing projects, production-aware diagnosis, and release preparation.
+description: Build, modify, debug, audit, test, validate, and package WordPress plugins, themes, Gutenberg blocks, React admin dashboards, REST APIs, WooCommerce extensions, multisite features, and WP-CLI commands. Use for new scaffolds, safe changes to existing projects, production-aware diagnosis, and release preparation. Also use to map an existing project's wiring, audit a multi-component site (theme + plugin(s)) for cross-component conflicts and lifecycle risks, run root-cause-first debugging, or catch runtime JS/React/CSS errors with a browser audit.
 ---
 
 # WordPress Full-Stack Development
