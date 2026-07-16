@@ -34,6 +34,7 @@
   ```js
   wp.apiFetch.use( wp.apiFetch.createNonceMiddleware( wpApiSettings.nonce ) );
   ```
+- For a submenu beneath a third-party parent, register after the parent with its real slug and verify it appears in navigation. Loading its direct admin URL is insufficient.
 
 ## 4. Accessibility (WCAG 2.2 AA)
 - **Color Contrast**: normal text ≥ 4.5:1, large text ≥ 3:1.
@@ -150,3 +151,15 @@
 - Coordinate components with real capability checks (`function_exists`, versioned constants), never a stub hardcoded to one answer.
 - Plugins that persist options or custom tables must ship an explicit uninstall contract (`uninstall.php` — delete, or deliberately retain with a stated reason). Deactivation must unschedule the plugin's cron/Action Scheduler events; data is retained, runtime state is not.
 - Never ship `.bak` files, `error_log` dumps, `.DS_Store`, or dead commented-out modules. Delete dead code; version control remembers it.
+
+## 18. Staged Cutovers, Backups & Credentials
+- Inventory active/inactive components, cron and Action Scheduler work, routes, shortcodes, blocks, options, custom tables, webhooks, and external workers before replacement.
+- Assign one owner per behavior and dataset. Stop old writes before enabling new writes; reconcile data and verify public, admin, and background journeys before removing the old implementation.
+- Prove backups with exit status, non-empty expected files, checksum verification, and an archive listing or restore spot-check.
+- Fail closed for payment, booking, order, and inventory truth. Never allow dual writers or an unverified fallback.
+- Keep secrets out of URLs and logs. Track and verify removal of test users, fixtures, tokens, temporary files, and debug switches; rotate exposed credentials.
+
+## 19. Deployable Plugin Packaging
+- Include runtime PHP such as `src/`, compiled assets, translations, and Composer `vendor/` when runtime-required.
+- Exclude tests, VCS metadata, node modules, logs, backups, source maps unless required, and development-only dependencies.
+- Require one top-level plugin directory and fail closed if a static runtime include or Composer autoloader is missing. Inspect the archive instead of trusting a successful ZIP command.

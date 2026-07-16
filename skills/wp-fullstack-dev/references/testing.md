@@ -8,6 +8,6 @@ Choose the smallest test pyramid that proves the changed behavior.
 - Browser: Playwright for critical admin and frontend journeys at representative viewports. Run against a disposable WordPress environment.
 - Accessibility: automated scanning plus manual keyboard, focus, zoom/reflow, and assistive-technology checks.
 
-CI should pin supported PHP/Node versions, use lockfiles, cache safely, grant minimal permissions, and stop disposable environments in `always()` cleanup. Release ZIPs include runtime PHP, translations, readmes, and compiled production assets; exclude VCS data, tests, source maps unless needed, node_modules, vendor when not runtime-required, local config, and secrets.
+CI should pin supported PHP/Node versions, use lockfiles, cache safely, grant minimal permissions, and stop disposable environments in `always()` cleanup. Release ZIPs include runtime PHP (including `src/`), translations, readmes, compiled production assets, and Composer `vendor/` when runtime-required; exclude VCS data, tests, source maps unless needed, node_modules, development-only vendor trees, local config, and secrets. Inspect the produced archive, require one plugin root, and fail closed when a static runtime include or required Composer autoloader is missing.
 
 Use `scripts/validate.sh` and state every skipped check with its reason. Use `scripts/package-plugin.sh` only after validation. Publishing, tagging, pushing, and deploying require explicit authorization.

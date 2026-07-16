@@ -1,5 +1,16 @@
 # Changelog
 
+## [3.10.0] - 2026-07-16
+### Added
+- A dedicated `cutover` operating mode and staged-cutover reference covering component/scheduler/data ownership, shadow comparison, fail-closed authority transfer, reconciliation, rollback, and removal of old implementations.
+- Eight subprocess-level packaging regressions covering runtime source/vendor inclusion, development-artifact exclusion, both output forms, development-only dependencies, missing runtime dependencies, and single-root archives.
+
+### Changed
+- Replaced the shell-only ZIP routine with a deterministic, standard-library packager. It preserves runtime `src/`, includes Composer `vendor/` only when required, supports an exact `.zip` output path, validates static `__DIR__` includes, verifies ZIP integrity and root layout, and removes partial archives on failure.
+- Live-site safety now requires evidence that backups are valid, keeps credentials out of URLs/logged arguments, and requires verified cleanup of temporary users, fixtures, tokens, files, and debug switches.
+- Dashboard guidance now covers registration order beneath third-party admin menus and requires visible-navigation verification rather than direct-URL checks alone.
+- Synced the Codex/Claude, Custom GPT, marketplace, README, CI, and plugin metadata surfaces at v3.10.0.
+
 ## [3.9.1] - 2026-07-15
 ### Changed
 - Synced descriptions across surfaces with the v3.6–3.9 capability set ahead of merging to `main`: `SKILL.md` frontmatter (used for routing), `README.md` (install instructions, "What ships", "Why this repository exists"), and `.agents/plugins/marketplace.json` now describe the site-audit mapper, lifecycle-risk detection, parallel-implementation detection, debugging methodology, and browser runtime audit.

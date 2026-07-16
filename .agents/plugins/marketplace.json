@@ -14,7 +14,7 @@
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
-      "description": "Build, debug, audit, and package WordPress plugins, themes, and dashboards — with a site-wide conflict/lifecycle audit and root-cause debugging discipline that catch patch-on-patch decay before it ships.",
+      "description": "Build, debug, audit, cut over, and runtime-safely package WordPress projects — with site-wide conflict/lifecycle checks and evidence-based release gates.",
       "category": "Developer Tools"
     }
   ]

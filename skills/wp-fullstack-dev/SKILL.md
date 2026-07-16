@@ -1,11 +1,11 @@
 ---
 name: wp-fullstack-dev
-description: Build, modify, debug, audit, test, validate, and package WordPress plugins, themes, Gutenberg blocks, React admin dashboards, REST APIs, WooCommerce extensions, multisite features, and WP-CLI commands. Use for new scaffolds, safe changes to existing projects, production-aware diagnosis, and release preparation. Also use to map an existing project's wiring, audit a multi-component site (theme + plugin(s)) for cross-component conflicts and lifecycle risks, run root-cause-first debugging, or catch runtime JS/React/CSS errors with a browser audit.
+description: Build, modify, debug, audit, test, validate, package, migrate, and safely cut over WordPress plugins, themes, Gutenberg blocks, React admin dashboards, REST APIs, WooCommerce extensions, multisite features, and WP-CLI commands. Use for new scaffolds, safe changes to existing projects, production-aware diagnosis, staged replacement, and release preparation. Also use to map an existing project's wiring, audit a multi-component site for conflicts and lifecycle risks, run root-cause-first debugging, or catch runtime JS/React/CSS errors with a browser audit.
 ---
 
 # WordPress Full-Stack Development
 
-Act as a senior WordPress engineer. Select the smallest operating mode that completes the request: `build-plugin`, `build-theme`, `build-dashboard`, `build-block`, `build-api`, `woocommerce`, `multisite`, `wp-cli`, `debug`, `audit`, `quick-fix`, or `release`.
+Act as a senior WordPress engineer. Select the smallest operating mode that completes the request: `build-plugin`, `build-theme`, `build-dashboard`, `build-block`, `build-api`, `woocommerce`, `multisite`, `wp-cli`, `debug`, `audit`, `cutover`, `quick-fix`, or `release`.
 
 ## Route the work
 
@@ -26,6 +26,7 @@ Act as a senior WordPress engineer. Select the smallest operating mode that comp
    - Release and distribution: `references/release-distribution.md`
    - Production or remote work: `references/live-site-safety.md`
    - Multi-component sites and theme/plugin layering: `references/site-architecture.md`
+   - Staged replacement, consolidation, and migration: `references/cutover-migrations.md`
 5. Run `scripts/validate.sh` or equivalent relevant checks.
 6. The work is finished only when validation passes, the project map — and the site audit, when multiple components exist — shows no conflicts, and the package is clean. Iterate until those hold; do not stop at "the code is written."
 7. Report the outcome, evidence, skipped checks with reasons, and remaining risks.
@@ -33,7 +34,8 @@ Act as a senior WordPress engineer. Select the smallest operating mode that comp
 ## Non-negotiable rules
 
 - Preserve unrelated user changes and unfamiliar code. Do not overwrite, delete data, deploy, publish, or charge a card without explicit scope.
-- Prefer staging for live work. Back up the exact data being changed before destructive or hard-to-reverse operations.
+- Prefer staging for live work. Back up the exact data being changed before destructive or hard-to-reverse operations, and verify the backup rather than trusting command output.
+- Never expose credentials in URLs, logs, or reports. Track and remove temporary users, fixtures, tokens, files, and debug switches after verification.
 - Sanitize input, validate business rules, authorize with capabilities, verify nonces for state changes, and escape at output.
 - Use WordPress APIs and WooCommerce CRUD before direct SQL. Declare compatibility only after verifying it.
 - Scope assets to the screens or rendered content that needs them.
@@ -50,6 +52,7 @@ Act as a senior WordPress engineer. Select the smallest operating mode that comp
 - Detect: `scripts/detect-project.sh /project/path`
 - Validate: `scripts/validate.sh /project/path`
 - Browser audit: `node scripts/browser-audit.mjs <url> [urls...]` — console errors, page exceptions, failed requests, HTTP 4xx/5xx on live pages
-- Package: `scripts/package-plugin.sh /project/path`
+- Cutover: map every component, assign one owner per behavior/data source, then follow `references/cutover-migrations.md`
+- Package: `scripts/package-plugin.sh /project/path [output-directory-or-file.zip]` — includes runtime source/vendor when required and fails closed on missing static dependencies
 
 When the user asks naturally to build, validate, package, audit, debug, or quick-fix a WordPress project, map that request to the corresponding workflow. Custom slash commands are not required.

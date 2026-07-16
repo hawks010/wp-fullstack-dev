@@ -5,9 +5,9 @@
 [![MIT license](https://img.shields.io/github/license/hawks010/wp-fullstack-dev)](LICENSE)
 [![WordPress](https://img.shields.io/badge/WordPress-full--stack-3858E9?logo=wordpress)](https://wordpress.org/)
 
-An installable skill for Claude Code, Codex, and Custom GPTs that builds, modifies, debugs, audits, tests, and packages WordPress plugins, themes, blocks, React dashboards, REST APIs, WooCommerce extensions, multisite features, and WP-CLI commands — and catches the mistakes that turn a codebase into patch-on-patch decay before they ship.
+An installable skill for Claude Code, Codex, and Custom GPTs that builds, modifies, debugs, audits, stages cutovers, tests, and runtime-safely packages WordPress plugins, themes, blocks, React dashboards, REST APIs, WooCommerce extensions, multisite features, and WP-CLI commands — and catches the mistakes that turn a codebase into patch-on-patch decay before they ship.
 
-v3 is a WordPress engineering Swiss Army knife: one skill invocation, automatic mode routing, focused specialist references, production-aware safety rules, reusable starters, and evidence-based validation. v3.6–3.9 add a static project mapper that goes beyond a single file tree: it audits an entire multi-component site (theme + plugin + plugin) for the failure modes that actually wreck WordPress builds — duplicate hook registrations, byte-identical files shipped by two components, functions or constants defined in more than one place (fatal redeclaration risk), contested option ownership, missing uninstall contracts, orphaned cron schedules, and parallel "-new"/"-old"/"-v2" implementations left to rot side by side. Paired with a root-cause-first debugging methodology and a headless browser audit for JS/React/CSS runtime errors, it is built to stop circular, guess-and-check fixing and give an agent (or a human) a real definition of "done."
+v3 is a WordPress engineering Swiss Army knife: one skill invocation, automatic mode routing, focused specialist references, production-aware safety rules, reusable starters, and evidence-based validation. v3.10 adds a staged-cutover operating mode, verified backup and temporary-credential cleanup gates, third-party admin navigation checks, and a deterministic packager that preserves runtime `src/` and Composer dependencies while rejecting incomplete archives. The site-level mapper still catches duplicate hooks/files/functions/constants, contested options, missing lifecycle cleanup, orphaned schedules, and parallel stale implementations before release.
 
 ## Install in Codex
 
@@ -26,6 +26,7 @@ $wp-fullstack-dev scaffold a plugin named inventory-sync
 $wp-fullstack-dev build a React stock dashboard with authenticated REST endpoints
 $wp-fullstack-dev validate and package this plugin
 $wp-fullstack-dev audit this WooCommerce extension without changing files
+$wp-fullstack-dev plan and verify a staged cutover from the old plugin to the new one
 ```
 
 Codex can run the bundled scaffold, mapper, validator, detector, browser audit, and packager in its workspace. The basic workflow does not require the user to type terminal commands. Skills use natural-language prompts; this package does not depend on deprecated custom slash commands.
@@ -39,15 +40,15 @@ $wp-fullstack-dev debug this WordPress issue: find the root cause before fixing
 
 - Native plugin manifest: `.codex-plugin/plugin.json`
 - Skill: `skills/wp-fullstack-dev/SKILL.md`
-- Eleven focused engineering references, including systematic debugging and multi-component site architecture
+- Fourteen focused engineering references, including systematic debugging, multi-component architecture, and staged cutovers
 - Interactive and argument-driven scaffold tool
 - A static project mapper that indexes hooks, REST routes, blocks, database touchpoints, and JavaScript entry points for a single project, **plus a site-audit mode** that scans a directory of components and reports cross-component conflicts (duplicate hooks, identical files, duplicated functions/constants, contested option writes), lifecycle risks (missing uninstall contracts, orphaned cron schedules), and parallel/stale implementation trees
 - A headless browser runtime audit (`scripts/browser-audit.mjs`) that surfaces console errors, uncaught exceptions, failed requests, and HTTP errors on live pages — real evidence for JS/React/CSS bugs
 - Structural project detection (real API usage and hook registrations, not keyword mentions) so specialist routing stays correct even on codebases that scan for or discuss WordPress patterns
 - Evidence-based validation covering PHP syntax, Composer, PHPCS, PHPStan, PHPUnit, npm build/lint/test, Playwright (opt-in), and shipping hygiene (rejects `.bak`, `error_log`, and other debug artifacts before packaging)
-- Deployable ZIP packaging that excludes dev tooling and hygiene violations
+- Deterministic deployable ZIP packaging that includes runtime `src/` and Composer `vendor/` when needed, excludes development artifacts, validates static includes, and verifies archive integrity/root layout
 - Plugin, dashboard, dynamic block, classic theme, block theme, WooCommerce, multisite, and WP-CLI starters
-- Reusable GitHub Actions workflow and this repository's full matrix CI (41 automated tests across the mapper, scaffold, and validator)
+- Reusable GitHub Actions workflow and this repository's full matrix CI (49 automated tests across the mapper, scaffold, validator, and packager)
 - Separate Custom GPT instructions and knowledge package, kept in sync with the debugging and layering discipline above
 
 ## Why this repository exists

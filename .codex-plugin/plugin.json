@@ -1,7 +1,7 @@
 {
   "name": "wp-fullstack-dev",
-  "version": "3.9.0",
-  "description": "A production-aware WordPress engineering skill with starters, project mapping, site-level conflict auditing, systematic debugging, validation, packaging, and specialist references.",
+  "version": "3.10.0",
+  "description": "A production-aware WordPress engineering skill with starters, project mapping, staged cutovers, site-level conflict auditing, systematic debugging, validation, and runtime-safe packaging.",
   "author": {
     "name": "Sonny x Inkfire",
     "url": "https://github.com/hawks010"
@@ -14,7 +14,7 @@
   "interface": {
     "displayName": "WordPress Full-Stack Dev",
     "shortDescription": "Build and verify WordPress projects",
-    "longDescription": "Scaffold, modify, debug, audit, test, validate, and package modern WordPress plugins, themes, blocks, dashboards, APIs, and WooCommerce extensions. Includes a static project mapper with cross-component conflict and lifecycle-risk detection, a root-cause-first debugging methodology, a browser runtime audit for JS/React/CSS errors, and evidence-based validation gates.",
+    "longDescription": "Scaffold, modify, debug, audit, migrate, test, validate, and package modern WordPress projects. Includes staged-cutover safety, verified backup and credential-cleanup gates, a site-level conflict mapper, root-cause-first debugging, browser runtime auditing, and runtime-aware deployable ZIP packaging.",
     "developerName": "Sonny x Inkfire",
     "category": "Developer Tools",
     "capabilities": ["Interactive", "Write"],
@@ -24,7 +24,8 @@
       "Build a React WordPress admin dashboard.",
       "Audit this WordPress project and verify it.",
       "Debug this WordPress issue: find the root cause before fixing.",
-      "Map this site's components and find layering conflicts."
+      "Map this site's components and find layering conflicts.",
+      "Plan and verify a staged WordPress component cutover."
     ],
     "brandColor": "#3858E9"
   }
