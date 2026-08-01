@@ -13,14 +13,14 @@
 		"env:stop": "wp-env stop"
 	},
 	"devDependencies": {
-		"@playwright/test": "^1.61.1",
-		"@testing-library/jest-dom": "^6.9.1",
+		"@playwright/test": "^1.62.0",
+		"@testing-library/jest-dom": "^7.0.0",
 		"@testing-library/react": "^16.3.2",
-		"@wordpress/api-fetch": "^7.51.0",
-		"@wordpress/components": "^37.0.0",
+		"@wordpress/api-fetch": "^7.52.0",
+		"@wordpress/components": "^38.0.0",
 		"@wordpress/element": "^8.3.0",
-		"@wordpress/env": "^11.11.0",
+		"@wordpress/env": "^11.12.0",
 		"@wordpress/i18n": "^6.24.0",
-		"@wordpress/scripts": "^33.0.0"
+		"@wordpress/scripts": "^34.0.0"
 	}
 }
