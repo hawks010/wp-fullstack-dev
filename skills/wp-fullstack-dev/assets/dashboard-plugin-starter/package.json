@@ -19,8 +19,8 @@
 		"@wordpress/api-fetch": "^7.51.0",
 		"@wordpress/components": "^37.0.0",
 		"@wordpress/element": "^8.3.0",
-		"@wordpress/env": "^11.11.0",
+		"@wordpress/env": "^11.15.0",
 		"@wordpress/i18n": "^6.24.0",
-		"@wordpress/scripts": "^33.0.0"
+		"@wordpress/scripts": "^35.0.0"
 	}
 }
